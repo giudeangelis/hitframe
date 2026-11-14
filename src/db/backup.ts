@@ -1,7 +1,9 @@
 import { db } from './db'
 
+const TABELLE = () => [db.profilo, db.eventi, db.diario, db.impostazioni, db.analisi, db.prove, db.drillPersonali, db.componenti, db.ricette, db.crono, db.lotti, db.armi, db.interventi]
+
 export const BACKUP_FORMATO = 'hitframe-backup'
-export const BACKUP_VERSIONE = 3
+export const BACKUP_VERSIONE = 4
 
 export interface Backup {
   formato: typeof BACKUP_FORMATO
@@ -15,11 +17,17 @@ export interface Backup {
     analisi?: unknown[]
     prove?: unknown[]
     drillPersonali?: unknown[]
+    componenti?: unknown[]
+    ricette?: unknown[]
+    crono?: unknown[]
+    lotti?: unknown[]
+    armi?: unknown[]
+    interventi?: unknown[]
   }
 }
 
 export async function creaBackup(): Promise<Backup> {
-  const [profilo, eventi, diario, impostazioni, analisi, prove, drillPersonali] = await Promise.all([
+  const [profilo, eventi, diario, impostazioni, analisi, prove, drillPersonali, componenti, ricette, crono, lotti, armi, interventi] = await Promise.all([
     db.profilo.toArray(),
     db.eventi.toArray(),
     db.diario.toArray(),
@@ -27,13 +35,19 @@ export async function creaBackup(): Promise<Backup> {
     db.analisi.toArray(),
     db.prove.toArray(),
     db.drillPersonali.toArray(),
+    db.componenti.toArray(),
+    db.ricette.toArray(),
+    db.crono.toArray(),
+    db.lotti.toArray(),
+    db.armi.toArray(),
+    db.interventi.toArray(),
   ])
   return {
     formato: BACKUP_FORMATO,
     versione: BACKUP_VERSIONE,
     creato: new Date().toISOString(),
     // i PDF non entrano nel backup: restano le analisi, senza i disegni degli stage
-    dati: { profilo, eventi, diario, impostazioni, analisi: analisi.map((a) => ({ ...a, pdf: null })), prove, drillPersonali },
+    dati: { profilo, eventi, diario, impostazioni, analisi: analisi.map((a) => ({ ...a, pdf: null })), prove, drillPersonali, componenti, ricette, crono, lotti, armi, interventi },
   }
 }
 
@@ -66,8 +80,8 @@ export async function ripristinaBackup(testo: string): Promise<{ eventi: number;
     throw new Error("Il backup arriva da una versione più recente dell'app. Aggiorna Hitframe e riprova.")
   }
   const d = parsed.dati
-  await db.transaction('rw', [db.profilo, db.eventi, db.diario, db.impostazioni, db.analisi, db.prove, db.drillPersonali], async () => {
-    await Promise.all([db.profilo.clear(), db.eventi.clear(), db.diario.clear(), db.impostazioni.clear(), db.analisi.clear(), db.prove.clear(), db.drillPersonali.clear()])
+  await db.transaction('rw', TABELLE(), async () => {
+    await Promise.all(TABELLE().map((t) => t.clear()))
     await db.prove.bulkPut((d.prove ?? []) as never[])
     await db.drillPersonali.bulkPut((d.drillPersonali ?? []) as never[])
     await db.profilo.bulkPut((d.profilo ?? []) as never[])
@@ -75,12 +89,18 @@ export async function ripristinaBackup(testo: string): Promise<{ eventi: number;
     await db.diario.bulkPut((d.diario ?? []) as never[])
     await db.impostazioni.bulkPut((d.impostazioni ?? []) as never[])
     await db.analisi.bulkPut((d.analisi ?? []) as never[])
+    await db.componenti.bulkPut((d.componenti ?? []) as never[])
+    await db.ricette.bulkPut((d.ricette ?? []) as never[])
+    await db.crono.bulkPut((d.crono ?? []) as never[])
+    await db.lotti.bulkPut((d.lotti ?? []) as never[])
+    await db.armi.bulkPut((d.armi ?? []) as never[])
+    await db.interventi.bulkPut((d.interventi ?? []) as never[])
   })
   return { eventi: d.eventi?.length ?? 0, diario: d.diario?.length ?? 0, analisi: d.analisi?.length ?? 0 }
 }
 
 export async function cancellaTutto() {
-  await db.transaction('rw', [db.profilo, db.eventi, db.diario, db.impostazioni, db.analisi, db.prove, db.drillPersonali], async () => {
-    await Promise.all([db.profilo.clear(), db.eventi.clear(), db.diario.clear(), db.impostazioni.clear(), db.analisi.clear(), db.prove.clear(), db.drillPersonali.clear()])
+  await db.transaction('rw', TABELLE(), async () => {
+    await Promise.all(TABELLE().map((t) => t.clear()))
   })
 }

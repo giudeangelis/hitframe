@@ -144,6 +144,8 @@ export interface Evento {
   creato: string
   piano?: number // id dell'analisi gara che ha generato la sessione
   drill?: string[] // drill della sessione
+  armaId?: number | null // arma usata (se vuoto: la principale)
+  lottoId?: number | null
   /** Sincronizzazione Google Calendar */
   google?: { eventoId?: string; aperturaId?: string; scadenzaId?: string; daSincronizzare?: boolean; ultimaSync?: string }
 }
@@ -212,5 +214,129 @@ export interface DrillPersonale {
   colpi: number
   partenza: string
   obiettivo: number | null
+  creato: string
+}
+
+/* ---------- Fase 3: munizioni ---------- */
+
+export type TipoComponente = 'palle' | 'polvere' | 'inneschi' | 'bossoli'
+
+export const TIPI_COMPONENTE: Record<TipoComponente, { label: string; unita: string; unitaPrezzo: string }> = {
+  palle: { label: 'Palle', unita: 'pz', unitaPrezzo: 'pz' },
+  polvere: { label: 'Polvere', unita: 'g', unitaPrezzo: 'g' },
+  inneschi: { label: 'Inneschi', unita: 'pz', unitaPrezzo: 'pz' },
+  bossoli: { label: 'Bossoli', unita: 'pz', unitaPrezzo: 'pz' },
+}
+
+/** Un componente in magazzino. Il prezzo è per confezione: costo unitario = prezzo / quantità confezione. */
+export interface Componente {
+  id?: number
+  tipo: TipoComponente
+  nome: string
+  quantita: number // pezzi, o grammi per la polvere
+  confezione: number | null // pezzi o grammi per confezione
+  prezzoConfezione: number | null // €
+  sogliaMinima: number | null
+  riusi?: number | null // bossoli: ricariche medie per bossolo
+  note: string
+  creato: string
+}
+
+export const TIPI_PALLA = ['Piombo ricoperto (coated)', 'Ramata (plated)', 'FMJ', 'Piombo nudo', 'Altro'] as const
+
+export interface Ricetta {
+  id?: number
+  nome: string
+  calibro: string
+  palla: string // marca e modello
+  pesoPalla: number // grani
+  tipoPalla: string
+  polvere: string
+  carica: number | null // grani
+  innesco: string
+  bossolo: string
+  oal: number | null // mm
+  note: string
+  /** Componenti di magazzino collegati (scaricati quando produci un lotto) */
+  pallaId?: number | null
+  polvereId?: number | null
+  innescoId?: number | null
+  bossoloId?: number | null
+  archiviata: boolean
+  creato: string
+}
+
+export interface SessioneCrono {
+  id?: number
+  ricettaId: number
+  armaId: number | null
+  data: string // YYYY-MM-DD
+  unita: 'ms' | 'fps'
+  velocita: number[] // nell'unità indicata
+  pesoMisurato: number | null // grani, se diverso da quello della ricetta
+  temperatura: number | null // °C
+  note: string
+  creato: string
+}
+
+/** Munizioni prodotte o acquistate (quantità negativa = rettifica). */
+export interface Lotto {
+  id?: number
+  ricettaId: number | null // null = munizioni commerciali
+  descrizione: string
+  data: string
+  quantita: number
+  costoColpo: number | null // € per colpo al momento della produzione
+  note: string
+  creato: string
+}
+
+/* ---------- Fase 3: attrezzatura ---------- */
+
+export interface ParteArma {
+  id: string
+  nome: string // Canna, Molla di recupero, ...
+  installata: string // YYYY-MM-DD
+  colpiInstallazione: number // colpi dell'arma al montaggio
+  vitaColpi: number | null // sostituzione consigliata ogni N colpi
+  note: string
+}
+
+export interface Manutenzione {
+  id: string
+  nome: string // Pulizia completa, ...
+  ogniColpi: number | null
+  ogniGiorni: number | null
+  ultimaColpi: number
+  ultimaData: string
+}
+
+export interface Arma {
+  id?: number
+  nome: string
+  modello: string
+  calibro: string
+  divisione: Divisione
+  principale: boolean
+  colpiIniziali: number // colpi già sparati prima di usare Hitframe
+  dal: string // da questa data contano le sessioni del calendario
+  parti: ParteArma[]
+  manutenzioni: Manutenzione[]
+  note: string
+  creato: string
+}
+
+export interface Intervento {
+  id?: number
+  armaId: number
+  data: string
+  tipo: 'manutenzione' | 'sostituzione' | 'riparazione' | 'colpi' | 'nota'
+  titolo: string
+  descrizione: string
+  colpiArma: number // conteggio al momento
+  colpiAggiunti?: number // tipo 'colpi': colpi sparati fuori calendario
+  parteId?: string
+  manutenzioneId?: string
+  costo: number | null
   creato: string
 }

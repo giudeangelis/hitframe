@@ -1,6 +1,6 @@
 import { addDays } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { BellRing, BookOpen, FileSearch, PenLine, Timer as TimerIcon, Trophy, UserRound } from 'lucide-react'
+import { AlertTriangle, BellRing, Package, Wrench, BookOpen, FileSearch, PenLine, Timer as TimerIcon, Trophy, UserRound } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import DiarioForm from '../components/DiarioForm'
@@ -8,6 +8,9 @@ import EventoForm from '../components/EventoForm'
 import EventoItem from '../components/EventoItem'
 import { Empty, Wordmark } from '../components/ui'
 import { db } from '../db/db'
+import { avvisiArma, colpiArma } from '../attrezzatura/calcoli'
+import { fabbisogno, scorta } from '../munizioni/calcoli'
+import { profiloGara } from '../analisi/motore'
 import type { Evento, VoceDiario } from '../db/types'
 import { capitalize, fmtLungo, giorniDa, oggiKey, quando, toKey } from '../lib/date'
 
@@ -117,6 +120,8 @@ export default function Home() {
         )}
       </section>
 
+      <AvvisiMateriale />
+
       <div className="stats" aria-label="Questo mese" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
         <div className="stat"><div className="v" style={{ color: 'var(--fuoco)' }}>{fuoco}</div><div className="l">A fuoco questo mese</div></div>
         <div className="stat"><div className="v" style={{ color: 'var(--bianco)' }}>{bianco}</div><div className="l">In bianco questo mese</div></div>
@@ -191,5 +196,44 @@ export default function Home() {
       {eventoAperto && <EventoForm key={eventoAperto.id} evento={eventoAperto} onClose={() => setEventoAperto(null)} />}
       {diario && <DiarioForm voce={diario.voce} onClose={() => setDiario(null)} />}
     </div>
+  )
+}
+
+/** Manutenzioni scadute, munizioni che mancano per la prossima gara, componenti da riordinare. */
+function AvvisiMateriale() {
+  const oggi = oggiKey()
+  const dati = useLiveQuery(async () => {
+    const [armi, eventi, interventi, lotti, comp, analisi] = await Promise.all([
+      db.armi.toArray(), db.eventi.toArray(), db.interventi.toArray(), db.lotti.toArray(), db.componenti.toArray(), db.analisi.toArray(),
+    ])
+    const out: { testo: string; to: string; tipo: 'arma' | 'munizioni' }[] = []
+    for (const a of armi) {
+      const c = colpiArma(a, eventi, interventi)
+      for (const x of avvisiArma(a, c, oggi).filter((v) => v.stato.livello === 'scaduta').slice(0, 2)) out.push({ testo: `${a.nome}: ${x.voce.toLowerCase()}`, to: `/attrezzatura/${a.id}`, tipo: 'arma' })
+    }
+    if (lotti.length) {
+      const sc = scorta(lotti, eventi)
+      const colpiA = new Map<number, number>()
+      for (const a of analisi) {
+        const sez = a.lettura.sezioni[a.sezione] ?? a.lettura.sezioni[0]
+        if (a.eventoId && sez) colpiA.set(a.eventoId, profiloGara(sez.stages).colpi)
+      }
+      const f = fabbisogno(eventi, sc.pronte, oggi, (g) => colpiA.get(g.id!) ?? null)
+      if (f && f.mancano > 0) out.push({ testo: `Munizioni: ne mancano circa ${f.mancano} per ${f.gara.titolo}`, to: '/munizioni', tipo: 'munizioni' })
+    }
+    const basso = comp.filter((c) => c.sogliaMinima !== null && c.quantita <= c.sogliaMinima)
+    if (basso.length) out.push({ testo: `Da riordinare: ${basso.map((c) => c.nome).join(', ')}`, to: '/munizioni?vista=magazzino', tipo: 'munizioni' })
+    return out
+  }, [oggi]) ?? []
+  if (!dati.length) return null
+  return (
+    <section className="card avviso" style={{ flexDirection: 'column', gap: 6 }}>
+      <div className="row" style={{ color: 'var(--text)', fontWeight: 700 }}><AlertTriangle size={18} color="var(--accent)" /> Materiale</div>
+      {dati.map((d) => (
+        <Link key={d.testo} to={d.to} className="row" style={{ color: 'var(--text)', fontSize: 14 }}>
+          {d.tipo === 'arma' ? <Wrench size={16} color="var(--muted)" /> : <Package size={16} color="var(--muted)" />} {d.testo}
+        </Link>
+      ))}
+    </section>
   )
 }

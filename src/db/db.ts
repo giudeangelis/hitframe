@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { AnalisiGara, DrillPersonale, Evento, Impostazione, Profilo, Prova, VoceDiario } from './types'
+import type { AnalisiGara, Arma, Componente, DrillPersonale, Evento, Impostazione, Intervento, Lotto, Profilo, Prova, Ricetta, SessioneCrono, VoceDiario } from './types'
 import { ARMA_DEFAULT, RIFERIMENTI_DEFAULT, TEMPI_DEFAULT } from './types'
 
 export class HitframeDB extends Dexie {
@@ -10,6 +10,12 @@ export class HitframeDB extends Dexie {
   analisi!: EntityTable<AnalisiGara, 'id'>
   prove!: EntityTable<Prova, 'id'>
   drillPersonali!: EntityTable<DrillPersonale, 'id'>
+  componenti!: EntityTable<Componente, 'id'>
+  ricette!: EntityTable<Ricetta, 'id'>
+  crono!: EntityTable<SessioneCrono, 'id'>
+  lotti!: EntityTable<Lotto, 'id'>
+  armi!: EntityTable<Arma, 'id'>
+  interventi!: EntityTable<Intervento, 'id'>
 
   constructor() {
     super('hitframe')
@@ -28,6 +34,15 @@ export class HitframeDB extends Dexie {
     this.version(3).stores({
       prove: '++id, drillId, data, eventoId, creato',
       drillPersonali: '++id, nome',
+    })
+    // v4: munizioni e attrezzatura
+    this.version(4).stores({
+      componenti: '++id, tipo',
+      ricette: '++id, nome, archiviata',
+      crono: '++id, ricettaId, data',
+      lotti: '++id, ricettaId, data',
+      armi: '++id, nome',
+      interventi: '++id, armaId, data',
     })
   }
 }

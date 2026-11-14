@@ -71,7 +71,7 @@ export default function Impostazioni() {
         </div>
       </section>
 
-      <p className="prose" style={{ fontSize: 12, textAlign: 'center' }}>Hitframe · versione 0.5.1</p>
+      <p className="prose" style={{ fontSize: 12, textAlign: 'center' }}>Hitframe · versione 0.6.0</p>
     </div>
   )
 }

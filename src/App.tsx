@@ -13,6 +13,9 @@ import Profilo from './pages/Profilo'
 import Allenamento from './pages/Allenamento'
 import DrillDettaglio from './pages/DrillDettaglio'
 import Timer from './pages/Timer'
+import Munizioni from './pages/Munizioni'
+import RicettaDettaglio from './pages/RicettaDettaglio'
+import Attrezzatura, { ArmaDettaglio } from './pages/Attrezzatura'
 
 // Il modulo Analisi gara (con pdf.js) si carica solo quando lo apri
 const AnalisiGare = lazy(() => import('./pages/AnalisiGare'))
@@ -35,6 +38,10 @@ export default function App() {
             <Route path="allenamento" element={<Allenamento />} />
             <Route path="allenamento/:id" element={<DrillDettaglio />} />
             <Route path="timer" element={<Timer />} />
+            <Route path="munizioni" element={<Munizioni />} />
+            <Route path="munizioni/ricetta/:id" element={<RicettaDettaglio />} />
+            <Route path="attrezzatura" element={<Attrezzatura />} />
+            <Route path="attrezzatura/:id" element={<ArmaDettaglio />} />
             <Route path="analisi-gara" element={<Suspense fallback={<div className="page" />}><AnalisiGare /></Suspense>} />
             <Route path="analisi-gara/:id" element={<Suspense fallback={<div className="page" />}><AnalisiDettaglio /></Suspense>} />
             <Route path="analisi-gara/:id/stage/:n" element={<Suspense fallback={<div className="page" />}><StudioStage /></Suspense>} />

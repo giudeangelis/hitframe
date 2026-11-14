@@ -52,6 +52,7 @@ export default function EventoForm({
   const [e, setE] = useState<Evento>(() => evento ?? nuovoEvento(data ?? oggiKey(), tipo))
   const [confermaElimina, setConfermaElimina] = useState(false)
   const personali = useLiveQuery(() => db.drillPersonali.toArray()) ?? []
+  const armi = useLiveQuery(() => db.armi.toArray()) ?? []
   const set = <K extends keyof Evento>(k: K, v: Evento[K]) => setE((p) => ({ ...p, [k]: v }))
   const gara = e.gara ?? garaVuota()
   const setGara = <K extends keyof typeof gara>(k: K, v: (typeof gara)[K]) => setE((p) => ({ ...p, gara: { ...(p.gara ?? garaVuota()), [k]: v } }))
@@ -220,6 +221,16 @@ export default function EventoForm({
                 <input id="ev-sparati" inputMode="numeric" className="input" value={e.colpiSparati ?? ''} onChange={(x) => set('colpiSparati', numOrNull(x.target.value))} />
               </div>
             )}
+          </div>
+        )}
+
+        {armi.length > 1 && (e.tipo === 'fuoco' || e.tipo === 'gara') && (
+          <div className="field">
+            <label htmlFor="ev-arma">Arma</label>
+            <select id="ev-arma" className="select" value={e.armaId ?? ''} onChange={(x) => set('armaId', x.target.value ? Number(x.target.value) : null)}>
+              <option value="">{armi.find((a) => a.principale)?.nome ?? 'Principale'} (principale)</option>
+              {armi.filter((a) => !a.principale).map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
+            </select>
           </div>
         )}
 

@@ -35,14 +35,6 @@ export const MODULI_PRINCIPALI: Modulo[] = [
 
 export const MODULI_FUTURI: Modulo[] = [
   {
-    path: '/munizioni', label: 'Munizioni', descrizione: 'Ricette, lotti, power factor', icon: Package, pronto: false, fase: 3,
-    dettagli: ['Ricette di ricarica e lotti', 'Calcolatore power factor con soglie per divisione', 'Magazzino componenti e costo per colpo'],
-  },
-  {
-    path: '/attrezzatura', label: 'Attrezzatura', descrizione: 'Armi, canne, manutenzione', icon: Wrench, pronto: false, fase: 3,
-    dettagli: ['Conteggio colpi per arma, canna e molle', 'Avvisi di manutenzione', 'Storico interventi'],
-  },
-  {
     path: '/stage-designer', label: 'Stage Designer', descrizione: 'Progetta stage di allenamento', icon: Crosshair, pronto: false, fase: 4,
     dettagli: ['Bersagli, piastre, ostacoli e fault line', 'Simulatore con tempo ideale dal tuo profilo', 'Export PDF'],
   },
@@ -56,7 +48,9 @@ export const MODULI_FUTURI: Modulo[] = [
 export const MODULI_EXTRA: Modulo[] = [
   { path: '/diario', label: 'Diario', descrizione: 'Sessioni, sensazioni, note', icon: BookOpen, pronto: true },
   { path: '/profilo', label: 'Profilo', descrizione: 'Atleta, arma e tempi', icon: User, pronto: true },
-  { path: '/analisi-gara', label: 'Analisi gara', descrizione: 'PDF di gara, profilo e priorità', icon: FileSearch, pronto: true },
+  { path: '/analisi-gara', label: 'Analisi gara', descrizione: 'PDF di gara, piani degli stage', icon: FileSearch, pronto: true },
+  { path: '/munizioni', label: 'Munizioni', descrizione: 'Ricette, cronografo, scorte', icon: Package, pronto: true },
+  { path: '/attrezzatura', label: 'Attrezzatura', descrizione: 'Colpi, manutenzione, usura', icon: Wrench, pronto: true },
 ]
 
 export const MODULO_IMPOSTAZIONI: Modulo = {
