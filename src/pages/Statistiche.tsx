@@ -8,7 +8,7 @@ import { GraficoLinee, Radar } from '../components/Grafici'
 import { Empty, PageHeader } from '../components/ui'
 import { db, getImp, normalizzaProfilo } from '../db/db'
 import { fmt } from '../lib/date'
-import { nomeLeggibile, trovaPerNome } from '../risultati/motore'
+import { inAltreDivisioni, nomeLeggibile, trovaPerNome } from '../risultati/motore'
 import { pendenza, puntiForzaDebolezza, puntiGara, type Corso } from '../statistiche/calcoli'
 
 const f1 = (n: number) => n.toFixed(1).replace('.', ',')
@@ -21,6 +21,7 @@ export default function Statistiche() {
   const personali = useLiveQuery(() => db.drillPersonali.toArray()) ?? []
   const eventi = useLiveQuery(() => db.eventi.toArray()) ?? []
   const rivali = useLiveQuery(() => getImp<string[]>('rivali', [])) ?? []
+  const diario = useLiveQuery(() => db.diario.toArray()) ?? []
 
   const punti = useMemo(() => (risultati && analisi ? puntiGara(risultati, analisi) : []), [risultati, analisi])
   const giudizi = useMemo(() => puntiForzaDebolezza(punti), [punti])
@@ -52,6 +53,35 @@ export default function Statistiche() {
     const ultimo = pp.slice(-3).reduce((a, p) => a + p.tempo!, 0) / 3
     return { d, n: pp.length, primo, ultimo, record: Math.min(...pp.map((p) => p.tempo!)), delta: (ultimo - primo) / primo }
   }).filter((x): x is NonNullable<typeof x> => !!x).sort((a, b) => a.delta - b.delta)
+
+  // Altre divisioni, gara per gara
+  const altre = new Map<string, { pct: number[]; pos: string[] }>()
+  for (const r of [...risultati].sort((a, b) => a.data.localeCompare(b.data))) {
+    for (const x of inAltreDivisioni(r)) {
+      const v = altre.get(x.divisione) ?? { pct: [], pos: [] }
+      v.pct.push(x.pct); v.pos.push(`${x.pos}°/${x.tot}`)
+      altre.set(x.divisione, v)
+    }
+  }
+  const altreLista = [...altre.entries()].map(([d, v]) => ({ d, media: v.pct.reduce((a, b) => a + b, 0) / v.pct.length, n: v.pct.length, pos: v.pos })).sort((a, b) => b.media - a.media)
+
+  // Testa e corpo: diario nei giorni di gara
+  const sigaDiario = (data: string, eventoId: number | null) => {
+    const d0 = new Date(Date.parse(data) - 2 * 86400000).toISOString().slice(0, 10)
+    const vv = diario.filter((v) => (eventoId !== null && v.eventoId === eventoId) || (v.data >= d0 && v.data <= data))
+    if (!vv.length) return null
+    const m = (f: (v: typeof vv[number]) => number | null) => { const x = vv.map(f).filter((n): n is number => n !== null); return x.length ? x.reduce((a, b) => a + b, 0) / x.length : null }
+    return { conc: m((v) => v.concentrazione), umore: m((v) => v.umore), energia: m((v) => v.energia), sonno: m((v) => v.sonnoOre) }
+  }
+  const testa = punti.map((p) => ({ p, d: sigaDiario(p.data, risultati.find((r) => r.id === p.id)?.eventoId ?? null) })).filter((x) => x.d)
+  let confrontoTesta = ''
+  if (testa.length >= 3) {
+    const conc = testa.map((x) => x.d!.conc!).sort((a, b) => a - b)
+    const med = conc[Math.floor(conc.length / 2)]
+    const alto = testa.filter((x) => x.d!.conc! > med), basso = testa.filter((x) => x.d!.conc! <= med)
+    const mm = (xx: typeof testa) => xx.reduce((a, x) => a + x.p.pct, 0) / Math.max(1, xx.length)
+    if (alto.length && basso.length) confrontoTesta = `Con concentrazione sopra ${med}/5 fai in media il ${f1(mm(alto))}%, sotto il ${f1(mm(basso))}%.`
+  }
 
   // Abilità
   const ab = profilo.abilita ?? {}
@@ -152,6 +182,43 @@ export default function Statistiche() {
               <p className="prose" style={{ fontSize: 12, margin: '8px 0 0' }}>Media degli stage su {perCorso.reduce((a, x) => a + x.k, 0)} stage. Il tipo viene dal libretto quando è caricato, altrimenti dai colpi.</p>
             </section>
           )}
+
+          {altreLista.length > 0 && (
+            <section className="card">
+              <div className="card-title">In un’altra divisione</div>
+              <div className="list">
+                {altreLista.map((x) => (
+                  <div key={x.d} className="item" style={{ padding: '8px 12px' }}>
+                    <div style={{ flex: 1 }}><div className="title" style={{ fontSize: 14 }}>{x.d}</div><div className="meta">{x.pos.join(' · ')}</div></div>
+                    <b>{f1(x.media)}%</b>
+                  </div>
+                ))}
+              </div>
+              <p className="prose" style={{ fontSize: 12, margin: '8px 0 0' }}>Media dei tuoi piazzamenti ipotetici nelle gare con i PDF completi. Con un’altra arma i tempi cambierebbero: è un indizio, non una previsione.</p>
+            </section>
+          )}
+
+          <section className="card">
+            <div className="card-title"><span>Testa e corpo</span><Link to="/diario">Diario</Link></div>
+            {testa.length === 0 ? (
+              <p className="prose" style={{ margin: 0, fontSize: 13 }}>Scrivi nel diario prima e dopo le gare (sonno, umore, energia, concentrazione): qui vedrai come incidono sui risultati.</p>
+            ) : (
+              <>
+                <div className="list">
+                  {testa.map(({ p, d }) => (
+                    <Link key={p.id} to={`/risultati/${p.id}`} className="item" style={{ padding: '8px 12px' }}>
+                      <div style={{ flex: 1 }}>
+                        <div className="title" style={{ fontSize: 14 }}>{p.breve}</div>
+                        <div className="meta">concentrazione {d!.conc ? f1(d!.conc) : '—'} · umore {d!.umore ? f1(d!.umore) : '—'}{d!.sonno ? ` · ${f1(d!.sonno)} h di sonno` : ''}</div>
+                      </div>
+                      <b>{f1(p.pct)}%</b>
+                    </Link>
+                  ))}
+                </div>
+                {confrontoTesta && <p style={{ margin: '10px 0 0' }}>{confrontoTesta}</p>}
+              </>
+            )}
+          </section>
 
           {rivali.length > 0 && risultati.length > 0 && (
             <section className="card">

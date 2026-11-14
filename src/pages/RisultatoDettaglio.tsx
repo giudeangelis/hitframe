@@ -11,7 +11,8 @@ import { fmtMedio, oggiKey } from '../lib/date'
 import { leggiDateGara } from '../analisi/date'
 import { metalli } from '../analisi/motore'
 import type { StageLetto } from '../analisi/tipi'
-import { analizza, avversariVicini, colpiStage, confronto, indicazioni, nomeLeggibile, trovaPerNome, type Analisi, type RisultatoGara } from '../risultati/motore'
+import DiarioCollegato from '../components/DiarioCollegato'
+import { inAltreDivisioni, analizza, avversariVicini, colpiStage, confronto, indicazioni, nomeLeggibile, trovaPerNome, type Analisi, type RisultatoGara } from '../risultati/motore'
 import { getImp, setImp } from '../db/db'
 import { Star } from 'lucide-react'
 
@@ -89,6 +90,11 @@ export default function RisultatoDettaglio() {
         options={[{ value: 'riepilogo', label: 'Riepilogo' }, { value: 'stage', label: 'Stage' }, { value: 'avversari', label: 'Avversari' }, { value: 'allenamento', label: 'Allena' }]} />
 
       {vista === 'riepilogo' && <Riepilogo a={a} r={r} />}
+      {vista === 'riepilogo' && <AltreDivisioni r={r} />}
+      {vista === 'riepilogo' && (
+        <DiarioCollegato eventoId={r.eventoId} date={[addGiorni(r.data, -2), addGiorni(r.data, -1), r.data]} titolo="Testa e sensazioni"
+          invito="Com’eri arrivato a questa gara? Sonno, concentrazione, cosa è andato bene: scrivilo, entra nelle statistiche." />
+      )}
       {vista === 'stage' && <Stage a={a} r={r} libretto={libretto ?? null} />}
       {vista === 'avversari' && <Avversari r={r} />}
       {vista === 'allenamento' && <Allenamento a={a} r={r} />}
@@ -100,6 +106,38 @@ export default function RisultatoDettaglio() {
           : <button className="btn ghost" onClick={() => setConferma(true)}><Trash2 size={16} /> Elimina</button>}
       </div>
     </div>
+  )
+}
+
+function AltreDivisioni({ r }: { r: RisultatoGara }) {
+  const lista = inAltreDivisioni(r)
+  return (
+    <section className="card">
+      <div className="card-title">E se fossi in un’altra divisione?</div>
+      {!r.altre ? (
+        <p className="prose" style={{ margin: 0, fontSize: 13 }}>Ricarica i PDF dei risultati di questa gara: ora salvo anche le altre divisioni per questo confronto.</p>
+      ) : lista.length === 0 ? (
+        <p className="prose" style={{ margin: 0, fontSize: 13 }}>Nessun’altra divisione con gli stessi stage in questa gara.</p>
+      ) : (
+        <>
+          <div className="list">
+            {lista.map((x) => (
+              <div key={x.divisione} className="item" style={{ padding: '10px 12px' }}>
+                <div style={{ flex: 1 }}>
+                  <div className="title">{x.divisione}</div>
+                  <div className="meta">{x.pos}° su {x.tot}{r.concorrenti.find((c) => c.num === r.mioNum)?.cls ? ` · ${x.posClasse}° tra i ${x.totClasse} di classe ${r.concorrenti.find((c) => c.num === r.mioNum)!.cls}` : ''}{x.major ? ` · in major ${x.major.pos}° (${f1(x.major.pct)}%)` : ''}</div>
+                </div>
+                <b>{f1(x.pct)}%</b>
+              </div>
+            ))}
+          </div>
+          <p className="prose" style={{ fontSize: 12, margin: '10px 0 0' }}>
+            Con i tuoi hit factor stage per stage, inseriti nella classifica di quella divisione. È una sbirciata: con un’altra arma (ottica, capienza, major) i tuoi tempi cambierebbero.
+            Per le divisioni che ammettono il major ricalcolo anche i tuoi colpi con C da 4 e D da 2.
+          </p>
+        </>
+      )}
+    </section>
   )
 }
 

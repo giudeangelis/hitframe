@@ -1,13 +1,16 @@
 import { X } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 
+/** Il marchio: sagoma IPSC ottagonale "a mirino" con il punto in zona A. */
 export function Mark({ size = 32 }: { size?: number }) {
   return (
     <svg viewBox="0 0 200 200" width={size} height={size} aria-hidden="true">
-      <g transform="skewX(-10) translate(18 0)">
-        <path d="M34,74 V34 H74 M126,34 H166 V74 M166,126 V166 H126 M74,166 H34 V126" fill="none" stroke="#F4F4F2" strokeWidth="18" strokeLinecap="square" />
-        <circle cx="100" cy="100" r="30" fill="none" stroke="#E5EA1E" strokeWidth="8" />
-        <circle cx="100" cy="100" r="16" fill="#E5EA1E" />
+      <g transform="translate(100 100) scale(0.92) translate(-100 -100)">
+        <g transform="skewX(-10) translate(18 0)">
+          <path d="M35,82 L35,57 L70,18 L88,18 M112,18 L130,18 L165,57 L165,82 M165,118 L165,143 L130,182 L112,182 M88,182 L70,182 L35,143 L35,118" fill="none" stroke="#F4F4F2" strokeWidth="18" strokeLinejoin="miter" />
+          <circle cx="100" cy="100" r="30" fill="none" stroke="#E5EA1E" strokeWidth="8" />
+          <circle cx="100" cy="100" r="16" fill="#E5EA1E" />
+        </g>
       </g>
     </svg>
   )

@@ -37,6 +37,8 @@ export interface RisultatoGara {
   concorrenti: Concorrente[]
   conVerify: boolean
   avversari?: number[] // scelti dal tiratore
+  /** Le altre divisioni della stessa gara, in forma leggera (per "e se fossi in un'altra divisione?") */
+  altre?: Record<string, { valoreStage: Record<number, number>; conc: { num: number; nome: string; cls: string; hf: Record<number, number> }[] }>
   /** Abbinamento con il libretto di gara (Analisi gara): stage risultati → stage libretto */
   abbinamento?: { analisiId: number; mappa: Record<number, number>; incerti: number[]; manuale: boolean }
 }
@@ -103,7 +105,29 @@ export function costruisciRisultato(l: LetturaRisultati, divisione: string, mioN
   lista.sort((a, b) => b.punti - a.punti)
   const max = lista[0]?.punti || 1
   lista.forEach((c, i) => { c.pos = i + 1; c.pct = (c.punti / max) * 100 })
+  // Altre divisioni: solo HF per stage, quanto basta per inserirsi in classifica
+  const altre: NonNullable<RisultatoGara['altre']> = {}
+  for (const [div, st] of Object.entries(l.stage)) {
+    if (div === divisione) continue
+    const vs: Record<number, number> = {}
+    const cm = new Map<number, { num: number; nome: string; cls: string; hf: Record<number, number> }>()
+    for (const [nStr, righe] of Object.entries(st)) {
+      const n = +nStr
+      vs[n] = Math.max(...righe.map((x) => x.puntiStage))
+      for (const x of righe) {
+        let c = cm.get(x.num)
+        if (!c) {
+          const nome = x.nome.replace(/\s+(ABSENT|DQ|DNF)$/i, '')
+          c = { num: x.num, nome, cls: (l.overall[div] ?? []).find((o) => o.nome === nome)?.cls || ver.get(x.num)?.cls || '', hf: {} }
+          cm.set(x.num, c)
+        }
+        c.hf[n] = x.hf
+      }
+    }
+    altre[div] = { valoreStage: vs, conc: [...cm.values()] }
+  }
   return {
+    altre,
     creato: new Date().toISOString(), gara: l.gara || 'Gara', data, eventoId: null, divisione, mioNum,
     valoreStage, concorrenti: lista, conVerify: lista.some((c) => Object.values(c.stages).some((s) => s.A !== undefined)),
   }
@@ -340,3 +364,65 @@ export function trovaPerNome(r: RisultatoGara, nome: string): Concorrente | unde
 }
 
 export const nomeLeggibile = (n: string) => n.split(',').map((x) => x.trim().toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())).reverse().join(' ').trim()
+
+/* ---------- E se fossi in un'altra divisione? ---------- */
+
+export interface InAltraDivisione {
+  divisione: string
+  pos: number
+  tot: number
+  pct: number
+  posClasse: number
+  totClasse: number
+  /** stesso calcolo con punteggio major (solo divisioni che lo ammettono) */
+  major?: { pos: number; pct: number }
+}
+
+const DIV_MAJOR = /^(Standard|Open|Classic|Revolver|Optics)$/i
+
+/**
+ * Il tiratore inserito nella classifica di un'altra divisione, con i suoi HF stage per stage.
+ * Solo divisioni con gli stessi stage e gli stessi punti (handgun dello stesso match).
+ */
+export function inAltreDivisioni(r: RisultatoGara): InAltraDivisione[] {
+  if (!r.altre) return []
+  const me = r.concorrenti.find((c) => c.num === r.mioNum)!
+  const nMiei = Object.keys(r.valoreStage).map(Number)
+  const out: InAltraDivisione[] = []
+  for (const [div, d] of Object.entries(r.altre)) {
+    const nD = Object.keys(d.valoreStage).map(Number)
+    if (nD.length !== nMiei.length || nMiei.some((n) => d.valoreStage[n] !== r.valoreStage[n])) continue
+    if (d.conc.length < 3) continue
+    const classifica = (mioHf: Record<number, number>) => {
+      const tot = new Map<number, number>()
+      for (const n of nMiei) {
+        const max = Math.max(mioHf[n] ?? 0, ...d.conc.map((c) => c.hf[n] ?? 0))
+        if (max <= 0) continue
+        for (const c of d.conc) tot.set(c.num, (tot.get(c.num) ?? 0) + (d.valoreStage[n] * (c.hf[n] ?? 0)) / max)
+        tot.set(-1, (tot.get(-1) ?? 0) + (d.valoreStage[n] * (mioHf[n] ?? 0)) / max)
+      }
+      const ord = [...tot.entries()].sort((a, b) => b[1] - a[1])
+      const pos = ord.findIndex(([k]) => k === -1) + 1
+      return { pos, pct: (tot.get(-1)! / ord[0][1]) * 100, ord }
+    }
+    const hfMinor = Object.fromEntries(nMiei.map((n) => [n, me.stages[n]?.hf ?? 0]))
+    const base = classifica(hfMinor)
+    const classe = base.ord.filter(([k]) => k === -1 || d.conc.find((c) => c.num === k)?.cls === me.cls)
+    const ris: InAltraDivisione = {
+      divisione: div, pos: base.pos, tot: d.conc.length + 1, pct: base.pct,
+      posClasse: classe.findIndex(([k]) => k === -1) + 1, totClasse: classe.length,
+    }
+    if (!me.major && DIV_MAJOR.test(div) && r.conVerify) {
+      const hfMaj = Object.fromEntries(nMiei.map((n) => {
+        const s = me.stages[n]
+        if (!s || s.A === undefined || s.tempo <= 0) return [n, s?.hf ?? 0]
+        const pts = 5 * s.A + 4 * (s.C ?? 0) + 2 * (s.D ?? 0) - 10 * ((s.MI ?? 0) + (s.NS ?? 0) + (s.PE ?? 0))
+        return [n, Math.max(0, pts) / s.tempo]
+      }))
+      const m = classifica(hfMaj)
+      ris.major = { pos: m.pos, pct: m.pct }
+    }
+    out.push(ris)
+  }
+  return out.sort((a, b) => b.pct - a.pct)
+}

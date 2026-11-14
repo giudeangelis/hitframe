@@ -8,11 +8,12 @@ import Diario from './pages/Diario'
 import Home from './pages/Home'
 import Impostazioni from './pages/Impostazioni'
 import InArrivo from './pages/InArrivo'
-import Moduli from './pages/Moduli'
 import Profilo from './pages/Profilo'
 import Allenamento from './pages/Allenamento'
 import DrillDettaglio from './pages/DrillDettaglio'
 import Timer from './pages/Timer'
+import Sessioni from './pages/Sessioni'
+import Gare from './pages/Gare'
 import Munizioni from './pages/Munizioni'
 import RicettaDettaglio from './pages/RicettaDettaglio'
 import Attrezzatura, { ArmaDettaglio } from './pages/Attrezzatura'
@@ -37,10 +38,11 @@ export default function App() {
             <Route path="diario" element={<Diario />} />
             <Route path="profilo" element={<Profilo />} />
             <Route path="impostazioni" element={<Impostazioni />} />
-            <Route path="moduli" element={<Moduli />} />
             <Route path="allenamento" element={<Allenamento />} />
             <Route path="allenamento/:id" element={<DrillDettaglio />} />
             <Route path="timer" element={<Timer />} />
+            <Route path="sessioni" element={<Sessioni />} />
+            <Route path="gare" element={<Gare />} />
             <Route path="statistiche" element={<Suspense fallback={<div className="page" />}><Statistiche /></Suspense>} />
             <Route path="risultati" element={<Suspense fallback={<div className="page" />}><Risultati /></Suspense>} />
             <Route path="risultati/:id" element={<Suspense fallback={<div className="page" />}><RisultatoDettaglio /></Suspense>} />

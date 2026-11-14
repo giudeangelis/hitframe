@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom'
 import DiarioForm from '../components/DiarioForm'
 import EventoForm from '../components/EventoForm'
 import EventoItem from '../components/EventoItem'
-import { Empty, Wordmark } from '../components/ui'
+import { Empty } from '../components/ui'
 import { db } from '../db/db'
 import { avvisiArma, colpiArma } from '../attrezzatura/calcoli'
 import { fabbisogno, scorta } from '../munizioni/calcoli'
@@ -59,7 +59,6 @@ export default function Home() {
 
   return (
     <div className="page">
-      <div className="mobile-brand"><Wordmark size={26} /></div>
 
       <header className="page-header">
         <div>

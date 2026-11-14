@@ -1,6 +1,6 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
-import { MODULI_EXTRA, MODULI_FUTURI, MODULI_PRINCIPALI, MODULO_ALTRO, MODULO_IMPOSTAZIONI } from '../modules'
+import { AREE, STRUMENTI, areaDi } from '../modules'
 import { aggiornaColoriSeServe, sincronizzaDopoAccesso, sincronizzaTutto } from '../google/calendar'
 import { useToast, Wordmark } from './ui'
 
@@ -26,39 +26,61 @@ export default function Layout() {
     }
   }, [toast])
 
-  const tabs = [...MODULI_PRINCIPALI, MODULO_ALTRO]
+  const area = areaDi(pathname)
+  const attiva = (p: string) => pathname === p || pathname.startsWith(p + '/')
 
   return (
     <div className="app">
       <aside className="sidebar" aria-label="Menu principale">
-        <div className="brand"><Wordmark size={30} /></div>
-        {[...MODULI_PRINCIPALI, ...MODULI_EXTRA].map((m) => (
-          <NavLink key={m.path} to={m.path} end={m.path === '/'} className="nav-link">
-            <m.icon size={20} /> {m.label}
-          </NavLink>
-        ))}
-        <div className="nav-section">Prossimi moduli</div>
-        {MODULI_FUTURI.map((m) => (
-          <NavLink key={m.path} to={m.path} className="nav-link">
-            <m.icon size={20} /> {m.label}
-            <span className="soon">Fase {m.fase}</span>
-          </NavLink>
+        <div className="brand"><Link to="/" style={{ textDecoration: 'none' }}><Wordmark size={30} /></Link></div>
+        {AREE.map((a) => (
+          <div key={a.id}>
+            <NavLink to={a.path} end={a.path === '/'} className={() => `nav-link${area?.id === a.id ? ' active' : ''}`}>
+              <a.icon size={20} /> {a.label}
+            </NavLink>
+            {area?.id === a.id && a.sezioni.length > 1 && (
+              <div className="nav-sub">
+                {a.sezioni.map((s) => (
+                  <NavLink key={s.path} to={s.path} className={() => `nav-sublink${attiva(s.path) ? ' active' : ''}`}>{s.label}</NavLink>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
         <div className="spacer" />
-        <NavLink to={MODULO_IMPOSTAZIONI.path} className="nav-link">
-          <MODULO_IMPOSTAZIONI.icon size={20} /> {MODULO_IMPOSTAZIONI.label}
-        </NavLink>
+        {STRUMENTI.map((s) => (
+          <NavLink key={s.path} to={s.path} className="nav-link"><s.icon size={20} /> {s.label}</NavLink>
+        ))}
       </aside>
 
       <main className="main">
+        <header className="topbar">
+          <Link to="/" style={{ textDecoration: 'none' }} aria-label="Oggi"><Wordmark size={24} /></Link>
+          <div className="row" style={{ gap: 4 }}>
+            {STRUMENTI.map((s) => (
+              <NavLink key={s.path} to={s.path} className="btn icon ghost topbar-btn" aria-label={s.label} title={s.label}>
+                <s.icon size={21} />
+              </NavLink>
+            ))}
+          </div>
+        </header>
+        {area && area.sezioni.length > 1 && (
+          <nav className="sottomenu" aria-label={`Sezioni di ${area.label}`}>
+            {area.sezioni.map((s) => (
+              <Link key={s.path} to={s.path} className={`sottomenu-voce${attiva(s.path) ? ' attiva' : ''}`} aria-current={attiva(s.path) ? 'page' : undefined}>
+                <s.icon size={15} /> {s.label}
+              </Link>
+            ))}
+          </nav>
+        )}
         <Outlet />
       </main>
 
       <nav className="tabbar" aria-label="Navigazione">
-        {tabs.map((m) => (
-          <NavLink key={m.path} to={m.path} end={m.path === '/'} className="tab">
-            <m.icon size={22} />
-            {m.label}
+        {AREE.map((a) => (
+          <NavLink key={a.id} to={a.path} end={a.path === '/'} className={() => `tab${area?.id === a.id ? ' active' : ''}`}>
+            <a.icon size={22} />
+            {a.label}
           </NavLink>
         ))}
       </nav>

@@ -411,3 +411,17 @@ input[type=range] { width: 100%; accent-color: var(--accent); min-height: 32px; 
 .tooltip-grafico { position: absolute; top: 4px; transform: translateX(-50%); background: var(--surface-2, #1c1c20); border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; font-size: 12px; pointer-events: none; white-space: nowrap; z-index: 2; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
 .tooltip-grafico .t { color: var(--muted); margin-bottom: 2px; }
 .tooltip-grafico i { display: inline-block; width: 8px; height: 8px; border-radius: 99px; margin-right: 5px; }
+
+/* Navigazione per aree */
+.topbar { display: flex; align-items: center; justify-content: space-between; max-width: 980px; margin: 0 auto 10px; }
+.topbar-btn { color: var(--muted); }
+.topbar-btn.active { color: var(--accent); background: var(--surface-2); }
+.sottomenu { display: flex; gap: 6px; overflow-x: auto; max-width: 980px; margin: 0 auto 16px; padding-bottom: 2px; scrollbar-width: none; }
+.sottomenu::-webkit-scrollbar { display: none; }
+.sottomenu-voce { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 600; background: var(--surface); }
+.sottomenu-voce.attiva { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.nav-sub { display: flex; flex-direction: column; margin: 2px 0 6px 32px; border-left: 1px solid var(--border); }
+.nav-sublink { padding: 7px 12px; color: var(--faint); text-decoration: none; font-size: 14px; }
+.nav-sublink:hover { color: var(--text); }
+.nav-sublink.active { color: var(--accent); }
+@media (min-width: 900px) { .topbar, .sottomenu { display: none; } }
