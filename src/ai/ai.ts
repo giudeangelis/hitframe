@@ -75,23 +75,7 @@ export async function chiedi(cfg: ConfigAI, req: Richiesta): Promise<string> {
       const j = await r.json()
       return (j.content ?? []).filter((c: { type: string }) => c.type === 'text').map((c: { text: string }) => c.text).join('\n')
     }
-    if (cfg.fornitore === 'gemini') {
-      const parts: unknown[] = []
-      if (req.immagine) parts.push({ inline_data: { mime_type: req.immagine.mime, data: req.immagine.base64 } })
-      parts.push({ text: req.testo })
-      r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modello)}:generateContent?key=${encodeURIComponent(cfg.chiave.trim())}`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: req.sistema }] },
-          contents: [{ role: 'user', parts }],
-          generationConfig: { maxOutputTokens: maxToken, responseMimeType: 'application/json' },
-        }),
-      })
-      if (!r.ok) throw new ErroreAI(await leggiErrore(r))
-      const j = await r.json()
-      return (j.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '').join('\n')
-    }
+    if (cfg.fornitore === 'gemini') return await chiediGemini(cfg.chiave.trim(), modello, req, maxToken)
     // OpenAI
     const content: unknown[] = [{ type: 'text', text: req.testo }]
     if (req.immagine) content.push({ type: 'image_url', image_url: { url: `data:${req.immagine.mime};base64,${req.immagine.base64}` } })
@@ -114,6 +98,44 @@ export async function chiedi(cfg: ConfigAI, req: Richiesta): Promise<string> {
   }
 }
 
+/** Modelli gratuiti di riserva, provati se quello scelto è sovraccarico. */
+export const RISERVE_GEMINI = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite']
+const attesa = (ms: number) => new Promise((ok) => setTimeout(ok, ms))
+
+async function chiediGemini(chiave: string, modello: string, req: Richiesta, maxToken: number): Promise<string> {
+  const parts: unknown[] = []
+  if (req.immagine) parts.push({ inline_data: { mime_type: req.immagine.mime, data: req.immagine.base64 } })
+  parts.push({ text: req.testo })
+  const body = JSON.stringify({
+    system_instruction: { parts: [{ text: req.sistema }] },
+    contents: [{ role: 'user', parts }],
+    generationConfig: { maxOutputTokens: maxToken, responseMimeType: 'application/json' },
+  })
+  const modelli = [modello, ...RISERVE_GEMINI.filter((m) => m !== modello)]
+  let ultimo = ''
+  for (const m of modelli) {
+    for (let tentativo = 0; tentativo < 2; tentativo++) {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': chiave },
+        body,
+      })
+      if (r.ok) {
+        const j = await r.json()
+        return (j.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '').join('\n')
+      }
+      ultimo = await leggiErrore(r)
+      // chiave errata o richiesta non valida: inutile insistere
+      if (r.status === 400 || r.status === 401 || r.status === 403) throw new ErroreAI(ultimo)
+      // modello inesistente: passa al successivo
+      if (r.status === 404) break
+      // sovraccarico (503) o limite (429): aspetta e riprova, poi cambia modello
+      await attesa(tentativo === 0 ? 2500 : 5000)
+    }
+  }
+  throw new ErroreAI(`Google è sovraccarico in questo momento (${ultimo}). Riprova tra qualche minuto.`)
+}
+
 /** Estrae il primo oggetto JSON da una risposta testuale. */
 export function estraiJson<T>(testo: string): T {
   const pulito = testo.replace(/```json|```/g, '')
@@ -128,7 +150,7 @@ export function estraiJson<T>(testo: string): T {
 }
 
 export async function provaCollegamento(cfg: ConfigAI): Promise<string> {
-  const t = await chiedi(cfg, { sistema: 'Rispondi solo con JSON.', testo: 'Rispondi con {"ok": true}', maxToken: 50 })
+  const t = await chiedi(cfg, { sistema: 'Rispondi solo con JSON.', testo: 'Rispondi con {"ok": true}', maxToken: 400 })
   estraiJson(t)
   return 'Collegamento riuscito'
 }
