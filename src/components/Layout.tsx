@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { MODULI_EXTRA, MODULI_FUTURI, MODULI_PRINCIPALI, MODULO_ALTRO, MODULO_IMPOSTAZIONI } from '../modules'
-import { sincronizzaDopoAccesso, sincronizzaTutto } from '../google/calendar'
+import { aggiornaColoriSeServe, sincronizzaDopoAccesso, sincronizzaTutto } from '../google/calendar'
 import { useToast, Wordmark } from './ui'
 
 export default function Layout() {
@@ -11,6 +11,9 @@ export default function Layout() {
   }, [pathname])
 
   const toast = useToast()
+  useEffect(() => {
+    aggiornaColoriSeServe()
+  }, [])
   useEffect(() => {
     const msg = sessionStorage.getItem('hf-msg')
     if (msg) {

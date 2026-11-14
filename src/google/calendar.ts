@@ -148,7 +148,20 @@ async function assicuraCalendario(cfg: ConfigGoogle): Promise<string> {
 
 /* ---------- Conversione eventi ---------- */
 
-const COLORI: Record<Evento['tipo'], string> = { gara: '3', fuoco: '11', bianco: '9', altro: '8' }
+// Colori di Google Calendar: 11 Pomodoro, 6 Mandarino, 9 Mirtillo, 8 Grafite
+const COLORI: Record<Evento['tipo'], string> = { gara: '11', fuoco: '6', bianco: '9', altro: '8' }
+const VERSIONE_COLORI = 2
+
+/** Quando cambiano i colori, rimette in coda gli eventi già inviati per aggiornarli su Google. */
+export async function aggiornaColoriSeServe() {
+  const cfg = await getConfig()
+  if (!cfg.attivo) return
+  if ((await getImp<number>('googleColori', 1)) >= VERSIONE_COLORI) return
+  await db.eventi.toCollection().modify((e) => {
+    if (e.google?.eventoId && (e.tipo === 'gara' || e.tipo === 'fuoco')) e.google.daSincronizzare = true
+  })
+  await setImp('googleColori', VERSIONE_COLORI)
+}
 const fmtDT = (d: Date) => format(d, "yyyy-MM-dd'T'HH:mm:ss")
 const giornoDopo = (k: string) => format(addDays(fromKey(k), 1), 'yyyy-MM-dd')
 
