@@ -1,13 +1,27 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { MODULI_EXTRA, MODULI_FUTURI, MODULI_PRINCIPALI, MODULO_ALTRO, MODULO_IMPOSTAZIONI } from '../modules'
-import { Wordmark } from './ui'
+import { sincronizzaDopoAccesso, sincronizzaTutto } from '../google/calendar'
+import { useToast, Wordmark } from './ui'
 
 export default function Layout() {
   const { pathname } = useLocation()
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [pathname])
+
+  const toast = useToast()
+  useEffect(() => {
+    const msg = sessionStorage.getItem('hf-msg')
+    if (msg) {
+      sessionStorage.removeItem('hf-msg')
+      toast(msg)
+    } else if (sincronizzaDopoAccesso()) {
+      sincronizzaTutto()
+        .then((r) => toast(`Google Calendar aggiornato (${r.inviati + r.eliminati} modifiche)`))
+        .catch(() => toast('Sincronizzazione non riuscita: riprova da Impostazioni'))
+    }
+  }, [toast])
 
   const tabs = [...MODULI_PRINCIPALI, MODULO_ALTRO]
 

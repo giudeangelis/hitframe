@@ -30,6 +30,50 @@ export interface TempiPersonali {
   colpoPiastra: number // colpo singolo su metallo a media distanza
 }
 
+export const FUNZIONAMENTI = {
+  striker: 'Striker a percussore lanciato (singola azione)',
+  strikerSafe: 'Striker Safe Action (percussore parzialmente armato)',
+  saCane: 'Singola azione con cane esterno',
+  dasa: 'Doppia/singola azione (DA/SA)',
+  dao: 'Solo doppia azione (DAO)',
+  lem: 'DA leggera / LEM',
+  revolver: 'Revolver DA/SA',
+  pcc: 'PCC (carabina semiautomatica)',
+} as const
+export type Funzionamento = keyof typeof FUNZIONAMENTI
+
+export interface DettagliArma {
+  funzionamento: Funzionamento
+  calibro: string
+  ottica: boolean
+  modelloOttica: string
+  capienza: number | null // colpi nel caricatore in gara
+  pesoScatto: number | null // kg
+  canna: string // lunghezza o tipo
+  note: string
+}
+
+export const ARMA_DEFAULT: DettagliArma = {
+  funzionamento: 'striker',
+  calibro: '9x21',
+  ottica: false,
+  modelloOttica: '',
+  capienza: null,
+  pesoScatto: null,
+  canna: '',
+  note: '',
+}
+
+/** Tempi di riferimento in gara (stage puliti, senza errori) per tipo di esercizio. */
+export interface RiferimentoGara { min: number; max: number; colpi: number }
+export type RiferimentiGara = Record<'Short' | 'Medium' | 'Long', RiferimentoGara>
+
+export const RIFERIMENTI_DEFAULT: RiferimentiGara = {
+  Short: { min: 8, max: 12, colpi: 12 },
+  Medium: { min: 16, max: 18, colpi: 24 },
+  Long: { min: 20, max: 24, colpi: 32 },
+}
+
 export interface Profilo {
   id: 'me'
   nome: string
@@ -39,6 +83,8 @@ export interface Profilo {
   club: string
   arma: string
   manoForte: 'destra' | 'sinistra'
+  armaDettagli: DettagliArma
+  riferimenti: RiferimentiGara
   tempi: TempiPersonali
   aggiornato: string // ISO
 }
@@ -67,6 +113,7 @@ export const TIPI_EVENTO: Record<TipoEvento, { label: string; breve: string }> =
 export const LIVELLI_GARA = ['Level I', 'Level II', 'Level III', 'Level IV', 'Level V'] as const
 
 export interface DettagliGara {
+  aperturaIscrizione?: string // YYYY-MM-DD o ''
   livello: string
   organizzatore: string
   iscrizioneUrl: string
@@ -85,12 +132,15 @@ export interface Evento {
   ora: string // HH:mm o ''
   durataMin: number | null
   luogo: string
+  mapsUrl?: string // link Google Maps (automatico dal luogo o incollato)
   note: string
   colpiPianificati: number | null
   colpiSparati: number | null
   completato: boolean
   gara?: DettagliGara
   creato: string
+  /** Sincronizzazione Google Calendar */
+  google?: { eventoId?: string; aperturaId?: string; scadenzaId?: string; daSincronizzare?: boolean; ultimaSync?: string }
 }
 
 export interface VoceDiario {

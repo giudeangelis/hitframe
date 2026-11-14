@@ -4,6 +4,7 @@ import { CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import EventoForm from '../components/EventoForm'
+import { BannerGoogle } from '../components/GoogleSync'
 import EventoItem from '../components/EventoItem'
 import { Empty, PageHeader } from '../components/ui'
 import { db } from '../db/db'
@@ -69,6 +70,8 @@ export default function Calendario() {
           </button>
         }
       />
+
+      <BannerGoogle />
 
       <section className="card">
         <div className="cal-head" style={{ marginBottom: 12 }}>

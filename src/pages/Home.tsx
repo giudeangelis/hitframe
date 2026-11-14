@@ -1,6 +1,6 @@
 import { addDays } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { BookOpen, FileSearch, PenLine, Trophy, UserRound } from 'lucide-react'
+import { BellRing, BookOpen, FileSearch, PenLine, Trophy, UserRound } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import DiarioForm from '../components/DiarioForm'
@@ -40,6 +40,18 @@ export default function Home() {
     [prossimaGara?.id],
   )
   const giorniGara = prossimaGara ? giorniDa(prossimaGara.data) : null
+
+  // Promemoria iscrizioni: aperture e scadenze nei prossimi 30 giorni, per gare non ancora iscritte
+  const iscrizioni = (useLiveQuery(() =>
+    db.eventi.where('data').aboveOrEqual(oggi).filter((e) => e.tipo === 'gara' && !e.gara?.iscritto).toArray(),
+  ) ?? []).flatMap((e) => {
+    const out: { e: Evento; tipo: 'apertura' | 'scadenza'; data: string; giorni: number }[] = []
+    const ap = e.gara?.aperturaIscrizione
+    const sc = e.gara?.scadenzaIscrizione
+    if (ap && giorniDa(ap) >= 0 && giorniDa(ap) <= 30) out.push({ e, tipo: 'apertura', data: ap, giorni: giorniDa(ap) })
+    if (sc && giorniDa(sc) >= 0 && giorniDa(sc) <= 30 && !(ap && giorniDa(ap) > 0)) out.push({ e, tipo: 'scadenza', data: sc, giorni: giorniDa(sc) })
+    return out
+  }).sort((a, b) => a.data.localeCompare(b.data))
   const nome = profilo?.nome?.split(' ')[0]
 
   return (
@@ -105,7 +117,7 @@ export default function Home() {
         )}
       </section>
 
-      <div className="stats" aria-label="Questo mese">
+      <div className="stats" aria-label="Questo mese" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
         <div className="stat"><div className="v" style={{ color: 'var(--fuoco)' }}>{fuoco}</div><div className="l">A fuoco questo mese</div></div>
         <div className="stat"><div className="v" style={{ color: 'var(--bianco)' }}>{bianco}</div><div className="l">In bianco questo mese</div></div>
         <div className="stat"><div className="v">{colpi}</div><div className="l">Colpi sparati</div></div>
@@ -116,6 +128,24 @@ export default function Home() {
         <Link to="/calendario?nuovo=bianco" className="btn" style={{ flex: 1 }}><span className="dot bianco" /> In bianco</Link>
         <button className="btn" style={{ flex: 1 }} onClick={() => setDiario({})}><PenLine size={16} /> Diario</button>
       </div>
+
+      {iscrizioni.length > 0 && (
+        <section className="card">
+          <div className="card-title"><span><BellRing size={18} style={{ verticalAlign: -3 }} /> Iscrizioni</span></div>
+          <div className="list">
+            {iscrizioni.map((x) => (
+              <button key={`${x.e.id}-${x.tipo}`} className="item" onClick={() => setEventoAperto(x.e)} style={x.tipo === 'scadenza' && x.giorni <= 3 ? { borderColor: 'var(--accent)' } : undefined}>
+                <span className="dot gara" aria-hidden="true" />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="title">{x.tipo === 'apertura' ? 'Aprono le iscrizioni' : 'Scade l’iscrizione'}: {x.e.titolo}</div>
+                  <div className="meta">{quando(x.data)}{x.e.gara?.iscrizioneUrl ? ' · link iscrizione nell’evento' : ''}</div>
+                </div>
+                {x.tipo === 'scadenza' && x.giorni <= 3 && <span className="badge" style={{ color: 'var(--accent)' }}>Urgente</span>}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {daRegistrare.length > 0 && (
         <section className="card">

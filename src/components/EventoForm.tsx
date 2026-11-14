@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { db, nowIso } from '../db/db'
 import { LIVELLI_GARA, TIPI_EVENTO, type Evento, type TipoEvento } from '../db/types'
+import { linkMaps } from '../lib/maps'
+import { dopoSalvataggio, primaDiEliminare } from '../google/calendar'
+import { MapPin } from 'lucide-react'
 import { oggiKey } from '../lib/date'
 import { numOrNull, Segmented, Sheet, useToast } from './ui'
 
@@ -29,6 +32,7 @@ function nuovoEvento(data: string, tipo: TipoEvento): Evento {
 }
 
 const garaVuota = () => ({
+  aperturaIscrizione: '',
   livello: 'Level II',
   organizzatore: '',
   iscrizioneUrl: '',
@@ -70,14 +74,16 @@ export default function EventoForm({
       dataFine: e.tipo === 'gara' && e.dataFine >= e.data ? e.dataFine : e.data,
       gara: e.tipo === 'gara' ? gara : undefined,
     }
-    const id = pulito.id ? await db.eventi.put(pulito) : await db.eventi.add(pulito)
-    onSalvato?.(id as number)
+    const id = (pulito.id ? await db.eventi.put(pulito) : await db.eventi.add(pulito)) as number
+    onSalvato?.(id)
     toast(evento?.id ? 'Evento aggiornato' : 'Evento aggiunto')
     onClose()
+    dopoSalvataggio(id).then((r) => r === 'ok' && toast('Inviato a Google Calendar'))
   }
 
   async function elimina() {
     if (!e.id) return
+    await primaDiEliminare(e)
     await db.eventi.delete(e.id)
     toast('Evento eliminato')
     onClose()
@@ -123,6 +129,19 @@ export default function EventoForm({
           <input id="ev-luogo" className="input" value={e.luogo} onChange={(x) => set('luogo', x.target.value)}
             placeholder={e.tipo === 'bianco' ? 'Casa' : 'Poligono'} />
         </div>
+        {e.tipo !== 'bianco' && (
+          <div className="field">
+            <label htmlFor="ev-maps">Posizione su Google Maps</label>
+            <div className="row" style={{ flexWrap: 'nowrap' }}>
+              <input id="ev-maps" type="url" className="input" value={e.mapsUrl ?? ''} onChange={(x) => set('mapsUrl', x.target.value)}
+                placeholder={e.luogo ? 'Automatico dal luogo, oppure incolla il link del pin' : 'Incolla un link di Google Maps'} />
+              {linkMaps(e) && (
+                <a className="btn icon" href={linkMaps(e)} target="_blank" rel="noreferrer" aria-label="Apri in Google Maps"><MapPin size={20} /></a>
+              )}
+            </div>
+            <span className="hint">{e.mapsUrl ? 'Uso il link che hai incollato.' : e.luogo ? 'Link creato dal nome del luogo: finisce anche su Google Calendar.' : ''}</span>
+          </div>
+        )}
 
         {e.tipo === 'gara' ? (
           <>
@@ -150,14 +169,21 @@ export default function EventoForm({
             </div>
             <div className="fields-2">
               <div className="field">
-                <label htmlFor="ev-scad">Scadenza iscrizione</label>
-                <input id="ev-scad" type="date" className="input" value={gara.scadenzaIscrizione} onChange={(x) => setGara('scadenzaIscrizione', x.target.value)} />
+                <label htmlFor="ev-apre">Apertura iscrizioni</label>
+                <input id="ev-apre" type="date" className="input" value={gara.aperturaIscrizione ?? ''} onChange={(x) => setGara('aperturaIscrizione', x.target.value)} />
               </div>
-              <label className="check" style={{ alignSelf: 'end' }}>
-                <input type="checkbox" checked={gara.iscritto} onChange={(x) => setGara('iscritto', x.target.checked)} />
-                Iscritto
-              </label>
+              <div className="field">
+                <label htmlFor="ev-scad">Scadenza iscrizione</label>
+                <input id="ev-scad" type="date" className="input" min={gara.aperturaIscrizione || undefined} value={gara.scadenzaIscrizione} onChange={(x) => setGara('scadenzaIscrizione', x.target.value)} />
+              </div>
             </div>
+            <label className="check">
+              <input type="checkbox" checked={gara.iscritto} onChange={(x) => setGara('iscritto', x.target.checked)} />
+              Iscritto
+            </label>
+            {(gara.aperturaIscrizione || gara.scadenzaIscrizione) && !gara.iscritto && (
+              <span className="hint" style={{ marginTop: -8 }}>Promemoria in Home e, se collegato, su Google Calendar con notifica.</span>
+            )}
             <div className="field">
               <label htmlFor="ev-url">Link iscrizione</label>
               <input id="ev-url" type="url" className="input" value={gara.iscrizioneUrl} onChange={(x) => setGara('iscrizioneUrl', x.target.value)} placeholder="https://mare2.fitds.it/" />

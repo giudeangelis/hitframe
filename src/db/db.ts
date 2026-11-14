@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type { AnalisiGara, Evento, Impostazione, Profilo, VoceDiario } from './types'
-import { TEMPI_DEFAULT } from './types'
+import { ARMA_DEFAULT, RIFERIMENTI_DEFAULT, TEMPI_DEFAULT } from './types'
 
 export class HitframeDB extends Dexie {
   profilo!: EntityTable<Profilo, 'id'>
@@ -39,11 +39,39 @@ export function profiloVuoto(): Profilo {
     club: '',
     arma: '',
     manoForte: 'destra',
+    armaDettagli: { ...ARMA_DEFAULT },
+    riferimenti: structuredClone(RIFERIMENTI_DEFAULT),
     tempi: { ...TEMPI_DEFAULT },
     aggiornato: nowIso(),
   }
 }
 
+/** Completa un profilo salvato con i campi aggiunti nelle versioni successive. */
+export function normalizzaProfilo(p: Partial<Profilo> | undefined): Profilo {
+  const base = profiloVuoto()
+  if (!p) return base
+  return {
+    ...base,
+    ...p,
+    armaDettagli: { ...base.armaDettagli, ...(p.armaDettagli ?? {}) },
+    riferimenti: {
+      Short: { ...base.riferimenti.Short, ...(p.riferimenti?.Short ?? {}) },
+      Medium: { ...base.riferimenti.Medium, ...(p.riferimenti?.Medium ?? {}) },
+      Long: { ...base.riferimenti.Long, ...(p.riferimenti?.Long ?? {}) },
+    },
+    tempi: { ...base.tempi, ...(p.tempi ?? {}) },
+  } as Profilo
+}
+
 export async function getProfilo(): Promise<Profilo> {
-  return (await db.profilo.get('me')) ?? profiloVuoto()
+  return normalizzaProfilo(await db.profilo.get('me'))
+}
+
+/* ---------- Impostazioni chiave/valore ---------- */
+export async function getImp<T>(chiave: string, def: T): Promise<T> {
+  const r = await db.impostazioni.get(chiave)
+  return r ? (r.valore as T) : def
+}
+export async function setImp(chiave: string, valore: unknown) {
+  await db.impostazioni.put({ chiave, valore })
 }

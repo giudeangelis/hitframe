@@ -2,7 +2,7 @@
  * Motore di analisi: profilo della gara, stime di tempo dai tempi personali,
  * priorità di allenamento. Tutto deterministico, niente AI.
  */
-import type { Classe, Divisione, Profilo, TempiPersonali } from '../db/types'
+import type { Classe, Divisione, Profilo } from '../db/types'
 import type { StageLetto } from './tipi'
 
 /* ---------- Profilo gara ---------- */
@@ -88,63 +88,50 @@ export const PERC_PUNTI: Record<Classe, number> = {
   D: 0.72, C: 0.78, B: 0.83, A: 0.87, Master: 0.91, 'Grand Master': 0.94,
 }
 
-/** Spostamenti medi stimati, senza conoscere il disegno. */
-const SPOSTAMENTI = { Short: { n: 0, m: 0 }, Medium: { n: 2, m: 4 }, Long: { n: 3, m: 5.5 } }
-
 export interface StimaStage {
-  totale: number
-  partenza: number
-  tiro: number
-  ricariche: number
-  nRicariche: number
-  movimento: number
-  spostamenti: number
-  attese: number
-  hitFactor: number
+  min: number
+  max: number
+  obiettivo: number
+  hfObiettivo: number
+  hfMin: number // al tempo massimo
+  hfMax: number // al tempo minimo
   puntiAttesi: number
+  fattori: string[]
 }
 
-export function stimaStage(s: StageLetto, profilo: Pick<Profilo, 'divisione' | 'classe' | 'tempi'>): StimaStage {
-  const t: TempiPersonali = profilo.tempi
-  const trans = s.tipo === 'Short' ? t.transizioneVicina : s.tipo === 'Medium' ? (t.transizioneVicina + t.transizioneLontana) / 2 : t.transizioneLontana
+/**
+ * Stima calibrata sui tempi di riferimento personali (stage puliti) per tipo di esercizio,
+ * adattata al numero di colpi e alle particolarità dello stage.
+ */
+export function stimaStage(s: StageLetto, profilo: Pick<Profilo, 'classe' | 'riferimenti' | 'armaDettagli'>): StimaStage {
+  const ref = profilo.riferimenti[s.tipo]
+  const fattori: string[] = []
+  const scala = s.colpi > 0 && ref.colpi > 0 ? Math.pow(s.colpi / ref.colpi, 0.85) : 1
+  if (Math.abs(scala - 1) > 0.02) fattori.push(`${s.colpi} colpi invece di ${ref.colpi}`)
 
-  // partenza
-  let partenza = t.estrazione
-  if (s.flag.armaSuTavolo) partenza += 0.35
-  if (s.flag.armaScarica) partenza += 0.9 // inserire il caricatore e camerare
-  else if (s.flag.colpoNonCamerato) partenza += 0.5
-  if (s.flag.partenzaGirato) partenza += 0.45
-  if (s.flag.seduto) partenza += 0.4
+  let extra = 0
+  let molt = 1
+  if (s.flag.armaScarica) { extra += 0.8; fattori.push('arma scarica: caricatore e cameratura (+0,8 s)') }
+  else if (s.flag.colpoNonCamerato) { extra += 0.4; fattori.push('colpo non camerato (+0,4 s)') }
+  if (s.flag.armaSuTavolo) { extra += 0.3; fattori.push('arma da prendere (+0,3 s)') }
+  if (s.flag.partenzaGirato) { extra += 0.4; fattori.push('partenza girato (+0,4 s)') }
+  if (s.flag.seduto) { extra += 0.4; fattori.push('partenza seduto (+0,4 s)') }
+  if (s.flag.manoDebole) { molt *= 1.15; fattori.push('mano debole (+15%)') }
+  else if (s.flag.manoForte) { molt *= 1.08; fattori.push('mano forte (+8%)') }
+  const f = profilo.armaDettagli.funzionamento
+  if (f === 'dasa') { extra += 0.1; fattori.push('primo colpo in doppia azione (+0,1 s)') }
+  else if (f === 'dao') { molt *= 1.06; fattori.push('scatto in sola doppia azione (+6%)') }
+  else if (f === 'lem') { extra += 0.05 }
 
-  // tiro: carta 2 colpi (secondo colpo = split), metallo 1 colpo con un po' più di mira
-  const nCarta = carte(s)
-  const nMetallo = metalli(s)
-  const bersagli = nCarta + nMetallo
-  const extraMetallo = Math.max(0, t.colpoPiastra - t.split)
-  let tiro = nCarta * t.split + nMetallo * extraMetallo + Math.max(0, bersagli - 1) * trans
-  const mano = s.flag.manoForte || s.flag.manoDebole
-  if (mano) tiro *= s.flag.manoDebole ? 1.45 : 1.25
-
-  // ricariche
-  const cap = CAPIENZA[profilo.divisione] ?? 15
-  let nRicariche = Math.max(0, Math.ceil(s.colpi / cap) - 1)
-  if (s.flag.ricaricaObbligatoria) nRicariche = Math.max(1, nRicariche)
-  // con stage lunghi conviene una ricarica di sicurezza in movimento
-  if (s.tipo === 'Long' && nRicariche === 1 && s.colpi > cap * 0.8) nRicariche = 2
-  const ricariche = nRicariche * Math.max(0, t.ricarica - t.split * 0.5)
-
-  // movimento
-  const mv = SPOSTAMENTI[s.tipo]
-  const movimento = mv.n * (t.uscitaPosizione + mv.m / t.velocitaMovimento + t.entrataPosizione)
-
-  // attese per bersagli attivati
-  const attese = s.flag.mobili ? Math.min(1.2, 0.4 * Math.max(1, s.attivazioni.length)) : 0
-
-  const totale = partenza + tiro + ricariche + movimento + attese
+  const min = ref.min * scala * molt + extra
+  const max = ref.max * scala * molt + extra
+  const obiettivo = min + 0.25 * (max - min)
   const puntiAttesi = s.puntiMax * (PERC_PUNTI[profilo.classe] ?? 0.85)
   return {
-    totale, partenza, tiro, ricariche, nRicariche, movimento, spostamenti: mv.n, attese,
-    hitFactor: totale > 0 ? puntiAttesi / totale : 0, puntiAttesi,
+    min, max, obiettivo, puntiAttesi, fattori,
+    hfObiettivo: puntiAttesi / obiettivo,
+    hfMin: puntiAttesi / max,
+    hfMax: puntiAttesi / min,
   }
 }
 

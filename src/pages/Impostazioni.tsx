@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Download, Sparkles, Trash2, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { ImpostazioniGoogle } from '../components/GoogleSync'
 import { PageHeader, useToast } from '../components/ui'
 import { cancellaTutto, ripristinaBackup, scaricaBackup } from '../db/backup'
 import { db } from '../db/db'
@@ -51,6 +52,8 @@ export default function Impostazioni() {
         {errore && <div role="alert" style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>{errore}</div>}
       </section>
 
+      <ImpostazioniGoogle />
+
       <section className="card form">
         <div className="card-title" style={{ marginBottom: 0 }}><span><Sparkles size={18} style={{ verticalAlign: -3 }} /> Assistente AI</span><span className="badge">Fase 5</span></div>
         <p className="prose" style={{ margin: 0 }}>
@@ -73,7 +76,7 @@ export default function Impostazioni() {
         </div>
       </section>
 
-      <p className="prose" style={{ fontSize: 12, textAlign: 'center' }}>Hitframe · versione 0.2.0</p>
+      <p className="prose" style={{ fontSize: 12, textAlign: 'center' }}>Hitframe · versione 0.3.0</p>
     </div>
   )
 }

@@ -1,22 +1,36 @@
 import { RotateCcw, Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { PageHeader, Segmented, useToast } from '../components/ui'
-import { db, nowIso, profiloVuoto } from '../db/db'
-import { CATEGORIE, CLASSI, DIVISIONI, TEMPI_DEFAULT, type Profilo as P, type TempiPersonali } from '../db/types'
+import { numOrNull, PageHeader, Segmented, useToast } from '../components/ui'
+import { db, normalizzaProfilo, nowIso } from '../db/db'
+import {
+  CATEGORIE, CLASSI, DIVISIONI, FUNZIONAMENTI, RIFERIMENTI_DEFAULT, TEMPI_DEFAULT,
+  type DettagliArma, type Funzionamento, type Profilo as P, type RiferimentiGara, type TempiPersonali,
+} from '../db/types'
 
-const TEMPI: { k: keyof TempiPersonali; nome: string; desc: string; unita: string; step: number }[] = [
-  { k: 'estrazione', nome: 'Estrazione', desc: 'Dal beep al primo colpo, bersaglio a 7 m, mani in posizione di resa', unita: 's', step: 0.01 },
-  { k: 'split', nome: 'Split', desc: 'Tra due colpi sullo stesso bersaglio a 7–10 m', unita: 's', step: 0.01 },
-  { k: 'transizioneVicina', nome: 'Transizione vicina', desc: 'Tra bersagli a circa 1 m di distanza', unita: 's', step: 0.01 },
-  { k: 'transizioneLontana', nome: 'Transizione lontana', desc: 'Tra bersagli distanti o con grande angolo', unita: 's', step: 0.01 },
-  { k: 'ricarica', nome: 'Ricarica', desc: 'Dall’ultimo colpo al primo colpo dopo il cambio caricatore', unita: 's', step: 0.01 },
-  { k: 'entrataPosizione', nome: 'Entrata in posizione', desc: 'Dall’arrivo in posizione al primo colpo', unita: 's', step: 0.01 },
-  { k: 'uscitaPosizione', nome: 'Uscita dalla posizione', desc: 'Dall’ultimo colpo al primo passo', unita: 's', step: 0.01 },
-  { k: 'colpoPiastra', nome: 'Colpo su piastra', desc: 'Colpo singolo su metallo a media distanza', unita: 's', step: 0.01 },
-  { k: 'velocitaMovimento', nome: 'Velocità di movimento', desc: 'Media tra posizioni, comprese partenza e frenata', unita: 'm/s', step: 0.1 },
+const TEMPI: { k: keyof TempiPersonali; nome: string; desc: string; unita: string }[] = [
+  { k: 'estrazione', nome: 'Estrazione', desc: 'Dal beep al primo colpo, bersaglio a 7 m, mani in posizione di resa', unita: 's' },
+  { k: 'split', nome: 'Split', desc: 'Tra due colpi sullo stesso bersaglio a 7–10 m', unita: 's' },
+  { k: 'transizioneVicina', nome: 'Transizione vicina', desc: 'Tra bersagli a circa 1 m di distanza', unita: 's' },
+  { k: 'transizioneLontana', nome: 'Transizione lontana', desc: 'Tra bersagli distanti o con grande angolo', unita: 's' },
+  { k: 'ricarica', nome: 'Ricarica', desc: 'Dall’ultimo colpo al primo colpo dopo il cambio caricatore', unita: 's' },
+  { k: 'entrataPosizione', nome: 'Entrata in posizione', desc: 'Dall’arrivo in posizione al primo colpo', unita: 's' },
+  { k: 'uscitaPosizione', nome: 'Uscita dalla posizione', desc: 'Dall’ultimo colpo al primo passo', unita: 's' },
+  { k: 'colpoPiastra', nome: 'Colpo su piastra', desc: 'Colpo singolo su metallo a media distanza', unita: 's' },
+  { k: 'velocitaMovimento', nome: 'Velocità di movimento', desc: 'Media tra posizioni, comprese partenza e frenata', unita: 'm/s' },
 ]
 
+const TIPI = ['Short', 'Medium', 'Long'] as const
 const f2 = (n: number) => n.toFixed(2).replace('.', ',')
+const txt = (n: number | null | undefined) => (n === null || n === undefined ? '' : String(n).replace('.', ','))
+
+function testiDa(p: P): Record<string, string> {
+  const t: Record<string, string> = {}
+  for (const x of TEMPI) t[`t.${x.k}`] = txt(p.tempi[x.k])
+  for (const k of TIPI) for (const c of ['min', 'max', 'colpi'] as const) t[`r.${k}.${c}`] = txt(p.riferimenti[k][c])
+  t['a.capienza'] = txt(p.armaDettagli.capienza)
+  t['a.pesoScatto'] = txt(p.armaDettagli.pesoScatto)
+  return t
+}
 
 export default function Profilo() {
   const toast = useToast()
@@ -26,39 +40,69 @@ export default function Profilo() {
 
   useEffect(() => {
     db.profilo.get('me').then((x) => {
-      const base = x ?? profiloVuoto() // primo avvio: profilo vuoto
+      const base = normalizzaProfilo(x)
       setP(base)
-      setTesti(Object.fromEntries(TEMPI.map((t) => [t.k, String(base.tempi[t.k]).replace('.', ',')])))
+      setTesti(testiDa(base))
     })
   }, [])
 
   if (!p) return <div className="page"><PageHeader title="Profilo" /></div>
 
   const set = <K extends keyof P>(k: K, v: P[K]) => { setP({ ...p, [k]: v }); setSporco(true) }
+  const setArma = <K extends keyof DettagliArma>(k: K, v: DettagliArma[K]) => {
+    setP((prev) => prev && { ...prev, armaDettagli: { ...prev.armaDettagli, [k]: v } })
+    setSporco(true)
+  }
 
   const setTempo = (k: keyof TempiPersonali, raw: string) => {
-    setTesti((t) => ({ ...t, [k]: raw }))
-    const n = Number(raw.replace(',', '.'))
-    if (Number.isFinite(n) && n > 0) {
-      setP((prev) => prev && { ...prev, tempi: { ...prev.tempi, [k]: n } })
+    setTesti((t) => ({ ...t, [`t.${k}`]: raw }))
+    const n = numOrNull(raw)
+    if (n !== null && n > 0) setP((prev) => prev && { ...prev, tempi: { ...prev.tempi, [k]: n } })
+    setSporco(true)
+  }
+
+  const setRif = (tipo: keyof RiferimentiGara, campo: 'min' | 'max' | 'colpi', raw: string) => {
+    setTesti((t) => ({ ...t, [`r.${tipo}.${campo}`]: raw }))
+    const n = numOrNull(raw)
+    if (n !== null && n > 0) {
+      setP((prev) => prev && { ...prev, riferimenti: { ...prev.riferimenti, [tipo]: { ...prev.riferimenti[tipo], [campo]: n } } })
     }
     setSporco(true)
   }
 
+  const setArmaNum = (k: 'capienza' | 'pesoScatto', raw: string) => {
+    setTesti((t) => ({ ...t, [`a.${k}`]: raw }))
+    setArma(k, numOrNull(raw))
+  }
+
   const ripristinaTempi = () => {
-    setP({ ...p, tempi: { ...TEMPI_DEFAULT } })
-    setTesti(Object.fromEntries(TEMPI.map((t) => [t.k, String(TEMPI_DEFAULT[t.k]).replace('.', ',')])))
+    const np = { ...p, tempi: { ...TEMPI_DEFAULT } }
+    setP(np)
+    setTesti(testiDa(np))
+    setSporco(true)
+  }
+  const ripristinaRif = () => {
+    const np = { ...p, riferimenti: structuredClone(RIFERIMENTI_DEFAULT) }
+    setP(np)
+    setTesti(testiDa(np))
     setSporco(true)
   }
 
   async function salva() {
     if (!p) return
+    for (const k of TIPI) {
+      if (p.riferimenti[k].max < p.riferimenti[k].min) {
+        toast(`${k}: il massimo è più basso del minimo`)
+        return
+      }
+    }
     await db.profilo.put({ ...p, aggiornato: nowIso() })
     setSporco(false)
     toast('Profilo salvato')
   }
 
   const t = p.tempi
+  const a = p.armaDettagli
   const billDrill = t.estrazione + 5 * t.split
   const elPresidente = t.estrazione + 0.35 + 6 * t.split + 4 * t.transizioneVicina + t.ricarica
   const spostamento5m = t.uscitaPosizione + 5 / t.velocitaMovimento + t.entrataPosizione
@@ -104,24 +148,98 @@ export default function Profilo() {
           </div>
         </div>
         <div className="field">
-          <label htmlFor="p-arma">Arma principale</label>
-          <input id="p-arma" className="input" value={p.arma} onChange={(e) => set('arma', e.target.value)} placeholder="Marca e modello" />
-        </div>
-        <div className="field">
           <span className="label">Mano forte</span>
           <Segmented label="Mano forte" value={p.manoForte} onChange={(v) => set('manoForte', v)}
             options={[{ value: 'destra', label: 'Destra' }, { value: 'sinistra', label: 'Sinistra' }]} />
         </div>
       </section>
 
+      <section className="card form">
+        <div className="card-title" style={{ marginBottom: 0 }}>Arma principale</div>
+        <div className="field">
+          <label htmlFor="p-arma">Marca e modello</label>
+          <input id="p-arma" className="input" value={p.arma} onChange={(e) => set('arma', e.target.value)} placeholder="Es. Arsenal Firearms Strike One" />
+        </div>
+        <div className="field">
+          <label htmlFor="a-funz">Funzionamento</label>
+          <select id="a-funz" className="select" value={a.funzionamento} onChange={(e) => setArma('funzionamento', e.target.value as Funzionamento)}>
+            {(Object.keys(FUNZIONAMENTI) as Funzionamento[]).map((k) => <option key={k} value={k}>{FUNZIONAMENTI[k]}</option>)}
+          </select>
+          <span className="hint">
+            {a.funzionamento === 'dasa' && 'Le stime aggiungono il primo colpo in doppia azione dalla condizione di pronto.'}
+            {a.funzionamento === 'dao' && 'Le stime considerano uno scatto più lungo su tutti i colpi.'}
+            {a.funzionamento === 'lem' && 'Le stime aggiungono un piccolo margine sul primo colpo.'}
+          </span>
+        </div>
+        <div className="fields-3">
+          <div className="field">
+            <label htmlFor="a-cal">Calibro</label>
+            <input id="a-cal" className="input" value={a.calibro} onChange={(e) => setArma('calibro', e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="a-cap">Colpi nel caricatore</label>
+            <input id="a-cap" className="input" inputMode="numeric" value={testi['a.capienza'] ?? ''} onChange={(e) => setArmaNum('capienza', e.target.value)} placeholder="15" />
+          </div>
+          <div className="field">
+            <label htmlFor="a-scatto">Peso scatto (kg)</label>
+            <input id="a-scatto" className="input" inputMode="decimal" value={testi['a.pesoScatto'] ?? ''} onChange={(e) => setArmaNum('pesoScatto', e.target.value)} />
+          </div>
+        </div>
+        <div className="fields-2">
+          <label className="check">
+            <input type="checkbox" checked={a.ottica} onChange={(e) => setArma('ottica', e.target.checked)} />
+            Ottica (red dot)
+          </label>
+          {a.ottica && (
+            <div className="field">
+              <label htmlFor="a-ott">Modello ottica</label>
+              <input id="a-ott" className="input" value={a.modelloOttica} onChange={(e) => setArma('modelloOttica', e.target.value)} />
+            </div>
+          )}
+        </div>
+        <div className="field">
+          <label htmlFor="a-canna">Canna</label>
+          <input id="a-canna" className="input" value={a.canna} onChange={(e) => setArma('canna', e.target.value)} placeholder="Lunghezza, marca, data di sostituzione…" />
+        </div>
+        <div className="field">
+          <label htmlFor="a-note">Note</label>
+          <textarea id="a-note" className="textarea" style={{ minHeight: 80 }} value={a.note} onChange={(e) => setArma('note', e.target.value)} placeholder="Molle, guida, modifiche…" />
+        </div>
+      </section>
+
+      <section className="card">
+        <div className="card-title">
+          <span>Tempi di riferimento in gara</span>
+          <button className="btn ghost" onClick={ripristinaRif} style={{ minHeight: 36 }}><RotateCcw size={16} /> Predefiniti</button>
+        </div>
+        <p className="prose" style={{ margin: '0 0 10px', fontSize: 13 }}>
+          I tuoi tempi tipici su stage puliti, senza errori. Le stime delle gare partono da qui e si adattano a ogni stage.
+        </p>
+        <div className="rif-grid">
+          <span />
+          <span className="label">Min (s)</span>
+          <span className="label">Max (s)</span>
+          <span className="label">Colpi</span>
+          {TIPI.map((k) => (
+            <div key={k} style={{ display: 'contents' }}>
+              <span className="n">{k}</span>
+              {(['min', 'max', 'colpi'] as const).map((c) => (
+                <input key={c} className="input" inputMode="decimal" aria-label={`${k} ${c}`}
+                  value={testi[`r.${k}.${c}`] ?? ''} onChange={(e) => setRif(k, c, e.target.value)} />
+              ))}
+            </div>
+          ))}
+        </div>
+      </section>
+
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <section className="card">
           <div className="card-title">
-            <span>Tempi personali</span>
+            <span>Tempi tecnici</span>
             <button className="btn ghost" onClick={ripristinaTempi} style={{ minHeight: 36 }}><RotateCcw size={16} /> Predefiniti</button>
           </div>
           <p className="prose" style={{ margin: '0 0 6px', fontSize: 13 }}>
-            Inserisci i tuoi valori medi, non i migliori. Con il modulo Timer si aggiorneranno da soli.
+            Valori medi, non i migliori: servono per drill e allenamenti. Con il Timer si aggiorneranno da soli.
           </p>
           {TEMPI.map((x) => (
             <div key={x.k} className="tempo-row">
@@ -130,7 +248,7 @@ export default function Profilo() {
                 <div className="d">{x.desc}</div>
               </div>
               <div className="unit-input">
-                <input id={`t-${x.k}`} className="input" inputMode="decimal" value={testi[x.k] ?? ''} onChange={(e) => setTempo(x.k, e.target.value)} />
+                <input id={`t-${x.k}`} className="input" inputMode="decimal" value={testi[`t.${x.k}`] ?? ''} onChange={(e) => setTempo(x.k, e.target.value)} />
                 <span>{x.unita}</span>
               </div>
             </div>
@@ -138,9 +256,9 @@ export default function Profilo() {
         </section>
 
         <section className="card">
-          <div className="card-title">Stime con i tuoi tempi</div>
+          <div className="card-title">Stime sui drill</div>
           <p className="prose" style={{ margin: '0 0 12px', fontSize: 13 }}>
-            Un assaggio del motore di calcolo: con gli stessi tempi Hitframe stimerà drill e stage.
+            Calcolate dai tempi tecnici.
           </p>
           <div className="stats" style={{ gridTemplateColumns: 'repeat(1, minmax(0, 1fr))' }}>
             <div className="stat">

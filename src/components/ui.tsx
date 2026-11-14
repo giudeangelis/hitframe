@@ -6,8 +6,8 @@ export function Mark({ size = 32 }: { size?: number }) {
     <svg viewBox="0 0 200 200" width={size} height={size} aria-hidden="true">
       <g transform="skewX(-10) translate(18 0)">
         <path d="M34,74 V34 H74 M126,34 H166 V74 M166,126 V166 H126 M74,166 H34 V126" fill="none" stroke="#F4F4F2" strokeWidth="18" strokeLinecap="square" />
-        <circle cx="100" cy="100" r="30" fill="none" stroke="#FF3B3B" strokeWidth="8" />
-        <circle cx="100" cy="100" r="16" fill="#FF3B3B" />
+        <circle cx="100" cy="100" r="30" fill="none" stroke="#E5EA1E" strokeWidth="8" />
+        <circle cx="100" cy="100" r="16" fill="#E5EA1E" />
       </g>
     </svg>
   )

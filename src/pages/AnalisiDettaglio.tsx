@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { AlertTriangle, ArrowLeft, CalendarCheck, CalendarPlus, ChevronDown, Hand, Move, Target, Timer, Trash2, Zap } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CalendarCheck, CalendarPlus, ChevronDown, Hand, Target, Timer, Trash2, Zap } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import EventoForm from '../components/EventoForm'
@@ -8,10 +8,11 @@ import { Segmented, useToast } from '../components/ui'
 import { leggiDateGara } from '../analisi/date'
 import { carte, fmtHf, fmtS, focusAllenamento, metalli, partenzaSpeciale, profiloGara, stimaStage, type StimaStage } from '../analisi/motore'
 import type { StageLetto } from '../analisi/tipi'
-import { db, nowIso, profiloVuoto } from '../db/db'
+import { db, normalizzaProfilo, nowIso } from '../db/db'
 import type { Evento } from '../db/types'
 import { quando } from '../lib/date'
 
+const fmtR = (a: number, b: number) => `${a.toFixed(1).replace('.', ',')}–${b.toFixed(1).replace('.', ',')} s`
 const pct = (n: number) => `${Math.round(n * 100)}%`
 /** Manda a capo le righe PCC per leggerle meglio. */
 const aCapo = (t: string) => t.replace(/\s+(PCC\s*:)/g, '\n$1')
@@ -22,7 +23,7 @@ export default function AnalisiDettaglio() {
   const toast = useToast()
   const analisiId = Number(id)
   const a = useLiveQuery(() => db.analisi.get(analisiId), [analisiId])
-  const profilo = useLiveQuery(async () => (await db.profilo.get('me')) ?? profiloVuoto())
+  const profilo = useLiveQuery(async () => normalizzaProfilo(await db.profilo.get('me')))
   const evento = useLiveQuery(async () => (a?.eventoId ? (await db.eventi.get(a.eventoId)) ?? null : null), [a?.eventoId])
   const [aperto, setAperto] = useState<number | null>(null)
   const [nuovoEvento, setNuovoEvento] = useState<Evento | null>(null)
@@ -45,7 +46,9 @@ export default function AnalisiDettaglio() {
   }
 
   const info = sez.info
-  const tempoTot = stime.reduce((t, s) => t + s.totale, 0)
+  const tempoTot = stime.reduce((t, s) => t + s.obiettivo, 0)
+  const tempoMin = stime.reduce((t, s) => t + s.min, 0)
+  const tempoMax = stime.reduce((t, s) => t + s.max, 0)
   const puntiTot = stime.reduce((t, s) => t + s.puntiAttesi, 0)
   const pesoMax = Math.max(...focus.map((f) => f.peso), 1)
 
@@ -60,11 +63,13 @@ export default function AnalisiDettaglio() {
       ora: '',
       durataMin: null,
       luogo: info.campo,
+      mapsUrl: '',
       note: info.matchDirector ? `Match Director: ${info.matchDirector}` : '',
       colpiPianificati: null,
       colpiSparati: null,
       completato: false,
       gara: {
+        aperturaIscrizione: '',
         livello: info.livello || 'Level II',
         organizzatore: '',
         iscrizioneUrl: '',
@@ -108,7 +113,7 @@ export default function AnalisiDettaglio() {
 
       {[...a.lettura.avvisi.filter((x) => !/libretti/.test(x)), ...sez.avvisi].length > 0 && (
         <div className="card avviso">
-          <AlertTriangle size={18} color="var(--gara)" style={{ flexShrink: 0 }} />
+          <AlertTriangle size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
           <div>{[...a.lettura.avvisi.filter((x) => !/libretti/.test(x)), ...sez.avvisi].join(' ')}</div>
         </div>
       )}
@@ -142,12 +147,13 @@ export default function AnalisiDettaglio() {
       <section className="card">
         <div className="card-title"><span>Stima con i tuoi tempi</span><Link to="/profilo">Profilo</Link></div>
         <div className="stats" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
-          <div className="stat"><div className="v">{fmtS(tempoTot)}</div><div className="l">Tempo totale stimato</div></div>
-          <div className="stat"><div className="v">{fmtHf(tempoTot ? puntiTot / tempoTot : 0)}</div><div className="l">Hit factor medio atteso</div></div>
+          <div className="stat"><div className="v">{fmtS(tempoTot)}</div><div className="l">Tempo obiettivo totale · da {fmtS(tempoMin)} a {fmtS(tempoMax)}</div></div>
+          <div className="stat"><div className="v">{fmtHf(tempoTot ? puntiTot / tempoTot : 0)}</div><div className="l">Hit factor medio all’obiettivo</div></div>
         </div>
         <p className="prose" style={{ fontSize: 13, margin: '10px 0 0' }}>
-          Stima indicativa per {profilo.divisione}, classe {profilo.classe}: senza leggere il disegno il movimento è calcolato
-          con spostamenti medi per tipo di stage. Più precisi sono i tuoi tempi nel profilo, più la stima è affidabile.
+          Calcolata sui tuoi tempi di riferimento in gara (Short {profilo.riferimenti.Short.min}–{profilo.riferimenti.Short.max} s,
+          Medium {profilo.riferimenti.Medium.min}–{profilo.riferimenti.Medium.max} s, Long {profilo.riferimenti.Long.min}–{profilo.riferimenti.Long.max} s),
+          adattata a colpi, partenza e condizioni di ogni stage. L’obiettivo è un’esecuzione pulita nella parte bassa del tuo intervallo.
         </p>
       </section>
 
@@ -222,8 +228,8 @@ function StageCard({ s, stima, aperto, onToggle, analisiId, pdf }: {
         </div>
         {stima && (
           <div className="stage-stima">
-            <div className="v">{fmtS(stima.totale)}</div>
-            <div className="l">HF {fmtHf(stima.hitFactor)}</div>
+            <div className="v">{fmtS(stima.obiettivo)}</div>
+            <div className="l">{fmtR(stima.min, stima.max)}</div>
           </div>
         )}
         <ChevronDown size={20} className="chev" />
@@ -233,11 +239,11 @@ function StageCard({ s, stima, aperto, onToggle, analisiId, pdf }: {
           <StageDisegno analisiId={analisiId} pdf={pdf} pagina={s.pagina} tagliaY={s.tabellaTopY} alt={`Disegno dello stage ${s.numero}`} />
           {stima && (
             <div className="stima-righe">
-              <div><Timer size={14} /> Partenza <b>{fmtS(stima.partenza)}</b></div>
-              <div><Target size={14} /> Tiro <b>{fmtS(stima.tiro)}</b></div>
-              <div><Move size={14} /> Movimento <b>{fmtS(stima.movimento)}</b>{stima.spostamenti ? ` (~${stima.spostamenti} spostamenti)` : ''}</div>
-              <div>Ricariche <b>{stima.nRicariche}</b> · {fmtS(stima.ricariche)}</div>
-              {stima.attese > 0 && <div><Zap size={14} /> Attivazioni <b>{fmtS(stima.attese)}</b></div>}
+              <div><Timer size={14} /> Obiettivo <b>{fmtS(stima.obiettivo)}</b></div>
+              <div>Intervallo <b>{fmtR(stima.min, stima.max)}</b></div>
+              <div><Target size={14} /> HF obiettivo <b>{fmtHf(stima.hfObiettivo)}</b></div>
+              <div>HF da <b>{fmtHf(stima.hfMin)}</b> a <b>{fmtHf(stima.hfMax)}</b></div>
+              {stima.fattori.length > 0 && <div style={{ gridColumn: '1 / -1' }}>Considerato: {stima.fattori.join(' · ')}</div>}
             </div>
           )}
           <dl className="dettagli">
