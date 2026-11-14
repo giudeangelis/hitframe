@@ -7,7 +7,7 @@ export default function Moduli() {
     <div className="page">
       <PageHeader title="Moduli" sub="Tutto Hitframe, pronto e in arrivo" />
       <div className="modules">
-        {[...MODULI_EXTRA, ...MODULI_PRINCIPALI.slice(1), MODULO_IMPOSTAZIONI].map((m) => (
+        {[...MODULI_PRINCIPALI.slice(1), ...MODULI_EXTRA, MODULO_IMPOSTAZIONI].map((m) => (
           <Link key={m.path} to={m.path} className="module">
             <m.icon size={26} />
             <div className="t">{m.label}</div>

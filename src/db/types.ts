@@ -139,6 +139,8 @@ export interface Evento {
   completato: boolean
   gara?: DettagliGara
   creato: string
+  piano?: number // id dell'analisi gara che ha generato la sessione
+  drill?: string[] // drill della sessione
   /** Sincronizzazione Google Calendar */
   google?: { eventoId?: string; aperturaId?: string; scadenzaId?: string; daSincronizzare?: boolean; ultimaSync?: string }
 }
@@ -173,4 +175,37 @@ export interface AnalisiGara {
   lettura: import('../analisi/tipi').GaraLetta
   sezione: number // libretto scelto (es. Handgun o PCC)
   eventoId: number | null
+}
+
+/** Una prova di un drill (a fuoco o in bianco). */
+export interface Prova {
+  id?: number
+  drillId: string
+  data: string // YYYY-MM-DD
+  creato: string
+  modalita: 'fuoco' | 'bianco'
+  tempo: number | null // secondi totali
+  colpi: number[] // tempi dei colpi dal beep (dal timer), se disponibili
+  zone: { A: number; C: number; D: number; M: number; NS: number }
+  major: boolean
+  hf: number | null
+  riuscita?: boolean // in bianco: entro il par
+  par?: number | null
+  eventoId: number | null
+  note: string
+}
+
+/** Drill creato dall'utente. */
+export interface DrillPersonale {
+  id?: number
+  nome: string
+  categoria: string
+  modalita: 'fuoco' | 'bianco'
+  descrizione: string
+  distanza: string
+  bersagli: string
+  colpi: number
+  partenza: string
+  obiettivo: number | null
+  creato: string
 }

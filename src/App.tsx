@@ -10,6 +10,9 @@ import Impostazioni from './pages/Impostazioni'
 import InArrivo from './pages/InArrivo'
 import Moduli from './pages/Moduli'
 import Profilo from './pages/Profilo'
+import Allenamento from './pages/Allenamento'
+import DrillDettaglio from './pages/DrillDettaglio'
+import Timer from './pages/Timer'
 
 // Il modulo Analisi gara (con pdf.js) si carica solo quando lo apri
 const AnalisiGare = lazy(() => import('./pages/AnalisiGare'))
@@ -28,6 +31,9 @@ export default function App() {
             <Route path="profilo" element={<Profilo />} />
             <Route path="impostazioni" element={<Impostazioni />} />
             <Route path="moduli" element={<Moduli />} />
+            <Route path="allenamento" element={<Allenamento />} />
+            <Route path="allenamento/:id" element={<DrillDettaglio />} />
+            <Route path="timer" element={<Timer />} />
             <Route path="analisi-gara" element={<Suspense fallback={<div className="page" />}><AnalisiGare /></Suspense>} />
             <Route path="analisi-gara/:id" element={<Suspense fallback={<div className="page" />}><AnalisiDettaglio /></Suspense>} />
             {MODULI_FUTURI.map((m) => (

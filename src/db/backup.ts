@@ -1,7 +1,7 @@
 import { db } from './db'
 
 export const BACKUP_FORMATO = 'hitframe-backup'
-export const BACKUP_VERSIONE = 2
+export const BACKUP_VERSIONE = 3
 
 export interface Backup {
   formato: typeof BACKUP_FORMATO
@@ -13,23 +13,27 @@ export interface Backup {
     diario: unknown[]
     impostazioni: unknown[]
     analisi?: unknown[]
+    prove?: unknown[]
+    drillPersonali?: unknown[]
   }
 }
 
 export async function creaBackup(): Promise<Backup> {
-  const [profilo, eventi, diario, impostazioni, analisi] = await Promise.all([
+  const [profilo, eventi, diario, impostazioni, analisi, prove, drillPersonali] = await Promise.all([
     db.profilo.toArray(),
     db.eventi.toArray(),
     db.diario.toArray(),
     db.impostazioni.toArray(),
     db.analisi.toArray(),
+    db.prove.toArray(),
+    db.drillPersonali.toArray(),
   ])
   return {
     formato: BACKUP_FORMATO,
     versione: BACKUP_VERSIONE,
     creato: new Date().toISOString(),
     // i PDF non entrano nel backup: restano le analisi, senza i disegni degli stage
-    dati: { profilo, eventi, diario, impostazioni, analisi: analisi.map((a) => ({ ...a, pdf: null })) },
+    dati: { profilo, eventi, diario, impostazioni, analisi: analisi.map((a) => ({ ...a, pdf: null })), prove, drillPersonali },
   }
 }
 
@@ -62,8 +66,10 @@ export async function ripristinaBackup(testo: string): Promise<{ eventi: number;
     throw new Error("Il backup arriva da una versione più recente dell'app. Aggiorna Hitframe e riprova.")
   }
   const d = parsed.dati
-  await db.transaction('rw', [db.profilo, db.eventi, db.diario, db.impostazioni, db.analisi], async () => {
-    await Promise.all([db.profilo.clear(), db.eventi.clear(), db.diario.clear(), db.impostazioni.clear(), db.analisi.clear()])
+  await db.transaction('rw', [db.profilo, db.eventi, db.diario, db.impostazioni, db.analisi, db.prove, db.drillPersonali], async () => {
+    await Promise.all([db.profilo.clear(), db.eventi.clear(), db.diario.clear(), db.impostazioni.clear(), db.analisi.clear(), db.prove.clear(), db.drillPersonali.clear()])
+    await db.prove.bulkPut((d.prove ?? []) as never[])
+    await db.drillPersonali.bulkPut((d.drillPersonali ?? []) as never[])
     await db.profilo.bulkPut((d.profilo ?? []) as never[])
     await db.eventi.bulkPut((d.eventi ?? []) as never[])
     await db.diario.bulkPut((d.diario ?? []) as never[])
@@ -74,7 +80,7 @@ export async function ripristinaBackup(testo: string): Promise<{ eventi: number;
 }
 
 export async function cancellaTutto() {
-  await db.transaction('rw', [db.profilo, db.eventi, db.diario, db.impostazioni, db.analisi], async () => {
-    await Promise.all([db.profilo.clear(), db.eventi.clear(), db.diario.clear(), db.impostazioni.clear(), db.analisi.clear()])
+  await db.transaction('rw', [db.profilo, db.eventi, db.diario, db.impostazioni, db.analisi, db.prove, db.drillPersonali], async () => {
+    await Promise.all([db.profilo.clear(), db.eventi.clear(), db.diario.clear(), db.impostazioni.clear(), db.analisi.clear(), db.prove.clear(), db.drillPersonali.clear()])
   })
 }

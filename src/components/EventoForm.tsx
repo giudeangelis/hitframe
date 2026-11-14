@@ -4,6 +4,8 @@ import { LIVELLI_GARA, TIPI_EVENTO, type Evento, type TipoEvento } from '../db/t
 import { linkMaps } from '../lib/maps'
 import { dopoSalvataggio, primaDiEliminare } from '../google/calendar'
 import { MapPin } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { DRILLS } from '../allenamento/drills'
 import { oggiKey } from '../lib/date'
 import { numOrNull, Segmented, Sheet, useToast } from './ui'
 
@@ -216,6 +218,18 @@ export default function EventoForm({
                 <input id="ev-sparati" inputMode="numeric" className="input" value={e.colpiSparati ?? ''} onChange={(x) => set('colpiSparati', numOrNull(x.target.value))} />
               </div>
             )}
+          </div>
+        )}
+
+        {e.drill && e.drill.length > 0 && (
+          <div className="field">
+            <span className="label">Drill della sessione</span>
+            <div className="chips">
+              {e.drill.map((id) => {
+                const d = DRILLS.find((x) => x.id === id)
+                return d ? <Link key={id} to={`/allenamento/${id}`} className="badge" style={{ textDecoration: 'none', padding: '6px 10px' }} onClick={onClose}>{d.nome}</Link> : null
+              })}
+            </div>
           </div>
         )}
 

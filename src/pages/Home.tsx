@@ -1,6 +1,6 @@
 import { addDays } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { BellRing, BookOpen, FileSearch, PenLine, Trophy, UserRound } from 'lucide-react'
+import { BellRing, BookOpen, FileSearch, PenLine, Timer as TimerIcon, Trophy, UserRound } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import DiarioForm from '../components/DiarioForm'
@@ -126,6 +126,7 @@ export default function Home() {
       <div className="row">
         <Link to="/calendario?nuovo=fuoco" className="btn" style={{ flex: 1 }}><span className="dot fuoco" /> Fuoco</Link>
         <Link to="/calendario?nuovo=bianco" className="btn" style={{ flex: 1 }}><span className="dot bianco" /> In bianco</Link>
+        <Link to="/timer" className="btn" style={{ flex: 1 }}><TimerIcon size={16} /> Timer</Link>
         <button className="btn" style={{ flex: 1 }} onClick={() => setDiario({})}><PenLine size={16} /> Diario</button>
       </div>
 

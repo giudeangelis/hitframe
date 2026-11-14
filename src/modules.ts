@@ -25,22 +25,15 @@ export interface Modulo {
   dettagli?: string[]
 }
 
+/** Nella barra in basso del telefono (più "Altro"). */
 export const MODULI_PRINCIPALI: Modulo[] = [
   { path: '/', label: 'Home', descrizione: 'Panoramica', icon: Home, pronto: true },
   { path: '/calendario', label: 'Calendario', descrizione: 'Allenamenti e gare', icon: CalendarDays, pronto: true },
-  { path: '/diario', label: 'Diario', descrizione: 'Sessioni, sensazioni, note', icon: BookOpen, pronto: true },
-  { path: '/profilo', label: 'Profilo', descrizione: 'Atleta e tempi personali', icon: User, pronto: true },
+  { path: '/allenamento', label: 'Allenamento', descrizione: 'Drill, prove, progressi', icon: Target, pronto: true },
+  { path: '/timer', label: 'Timer', descrizione: 'Shot timer e par time', icon: Timer, pronto: true },
 ]
 
 export const MODULI_FUTURI: Modulo[] = [
-  {
-    path: '/allenamento', label: 'Allenamento', descrizione: 'Drill, programmi, sessioni', icon: Target, pronto: false, fase: 2,
-    dettagli: ['Libreria drill classici e personali con obiettivi per classe', 'Programmi a cicli verso la gara obiettivo', 'Registro sessioni con tempi e hit factor'],
-  },
-  {
-    path: '/timer', label: 'Timer', descrizione: 'Shot timer e par time', icon: Timer, pronto: false, fase: 2,
-    dettagli: ['Beep di partenza con ritardo casuale', 'Rilevamento colpi dal microfono e split automatici', 'Modalità in bianco con par time e comandi vocali'],
-  },
   {
     path: '/munizioni', label: 'Munizioni', descrizione: 'Ricette, lotti, power factor', icon: Package, pronto: false, fase: 3,
     dettagli: ['Ricette di ricarica e lotti', 'Calcolatore power factor con soglie per divisione', 'Magazzino componenti e costo per colpo'],
@@ -61,6 +54,8 @@ export const MODULI_FUTURI: Modulo[] = [
 
 /** Moduli pronti che non stanno nella barra in basso del telefono. */
 export const MODULI_EXTRA: Modulo[] = [
+  { path: '/diario', label: 'Diario', descrizione: 'Sessioni, sensazioni, note', icon: BookOpen, pronto: true },
+  { path: '/profilo', label: 'Profilo', descrizione: 'Atleta, arma e tempi', icon: User, pronto: true },
   { path: '/analisi-gara', label: 'Analisi gara', descrizione: 'PDF di gara, profilo e priorità', icon: FileSearch, pronto: true },
 ]
 

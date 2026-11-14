@@ -1,8 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { AlertTriangle, ArrowLeft, CalendarCheck, CalendarPlus, ChevronDown, Hand, Target, Timer, Trash2, Zap } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CalendarCheck, CalendarPlus, CalendarRange, ChevronDown, Hand, Target, Timer, Trash2, Zap } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import EventoForm from '../components/EventoForm'
+import PianoForm from '../components/PianoForm'
 import StageDisegno from '../components/StageDisegno'
 import { Segmented, useToast } from '../components/ui'
 import { leggiDateGara } from '../analisi/date'
@@ -28,6 +29,8 @@ export default function AnalisiDettaglio() {
   const [aperto, setAperto] = useState<number | null>(null)
   const [nuovoEvento, setNuovoEvento] = useState<Evento | null>(null)
   const [confermaElimina, setConfermaElimina] = useState(false)
+  const [piano, setPiano] = useState(false)
+  const sessioniPiano = useLiveQuery(() => db.eventi.filter((e) => e.piano === analisiId).count(), [analisiId]) ?? 0
 
   const sez = a ? a.lettura.sezioni[a.sezione] ?? a.lettura.sezioni[0] : null
   const stages = useMemo(() => sez?.stages ?? [], [sez])
@@ -158,7 +161,15 @@ export default function AnalisiDettaglio() {
       </section>
 
       <section className="card">
-        <div className="card-title">Priorità di allenamento</div>
+        <div className="card-title">
+          <span>Priorità di allenamento</span>
+          {evento && evento.data > new Date().toISOString().slice(0, 10) && (
+            <button className="btn primary" style={{ minHeight: 36, fontFamily: 'var(--body)', textTransform: 'none', letterSpacing: 0, fontSize: 14 }} onClick={() => setPiano(true)}>
+              <CalendarRange size={16} /> {sessioniPiano ? `Piano (${sessioniPiano})` : 'Crea piano'}
+            </button>
+          )}
+        </div>
+        {!evento && <p className="prose" style={{ margin: '0 0 12px', fontSize: 13 }}>Aggiungi la gara al calendario per generare un piano di allenamento fino al giorno della gara.</p>}
         <div className="list" style={{ gap: 14 }}>
           {focus.slice(0, 6).map((f, i) => (
             <div key={f.id} className="focus">
@@ -194,6 +205,10 @@ export default function AnalisiDettaglio() {
           <button className="btn ghost" onClick={() => setConfermaElimina(true)}><Trash2 size={18} /> Elimina analisi</button>
         )}
       </div>
+
+      {piano && evento && (
+        <PianoForm analisiId={analisiId} focus={focus} dataGara={evento.data} nomeGara={evento.titolo} onClose={() => setPiano(false)} />
+      )}
 
       {nuovoEvento && (
         <EventoForm

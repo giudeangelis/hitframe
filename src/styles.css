@@ -311,3 +311,47 @@ h1, h2, h3 { font-family: var(--display); margin: 0; line-height: 1.05; }
 .guida summary { cursor: pointer; font-weight: 600; min-height: 28px; }
 .guida ol { margin: 10px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: var(--muted); }
 .guida code { background: var(--surface-3); padding: 1px 6px; border-radius: 6px; color: var(--text); word-break: break-all; }
+
+/* ---------- Allenamento ---------- */
+.drill-grid { display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 560px) { .drill-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1000px) { .drill-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.drill-card { display: flex; flex-direction: column; gap: 6px; padding: 14px; min-height: 128px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); text-decoration: none; }
+.drill-card:hover { border-color: #3a3a40; }
+.drill-card .t { font-family: var(--display); font-weight: 700; font-size: 22px; text-transform: uppercase; line-height: 1; }
+.drill-card .s, .drill-card .meta { font-size: 12px; color: var(--muted); }
+.drill-card.compatta { min-width: 200px; min-height: 104px; background: var(--bg); }
+.drill-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; scroll-snap-type: x mandatory; }
+.drill-scroll > * { scroll-snap-align: start; flex: 0 0 auto; }
+
+.obiettivi { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.ob { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 4px; text-align: center; }
+.ob .c { font-size: 12px; color: var(--faint); font-weight: 700; }
+.ob .v { font-family: var(--display); font-weight: 800; font-style: italic; font-size: 22px; }
+.ob.mio { border-color: var(--accent); }
+.ob.mio .v { color: var(--accent); }
+
+.zone-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 560px) { .zone-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.stepper { display: flex; flex-direction: column; gap: 6px; }
+.stepper-v { font-family: var(--display); font-weight: 800; font-size: 26px; min-width: 36px; text-align: center; }
+.hf-big { font-family: var(--display); font-weight: 800; font-style: italic; font-size: 26px; color: var(--accent); }
+
+/* ---------- Timer ---------- */
+.timer-display { background: #000; border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 16px; text-align: center; transition: background .15s; }
+.timer-display.flash { background: #2a2b05; }
+.timer-stato { font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+.timer-tempo { font-family: var(--display); font-weight: 900; font-style: italic; font-size: clamp(72px, 24vw, 140px); line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; margin: 8px 0; }
+.timer-sub { color: var(--muted); font-size: 14px; }
+.meter-mic { position: relative; height: 10px; border-radius: 6px; background: var(--surface-3); overflow: hidden; }
+.meter-mic span { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ok); transition: width .05s linear; }
+.meter-mic i { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent); }
+.timer-azioni .grande { flex: 1; min-height: 64px; font-size: 20px; font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+table.colpi { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+table.colpi th { text-align: left; font-size: 12px; color: var(--faint); font-weight: 600; padding: 4px 6px; }
+table.colpi td { padding: 6px; border-top: 1px solid var(--border); font-size: 16px; }
+table.colpi td:first-child { color: var(--faint); width: 32px; }
+input[type=range] { width: 100%; accent-color: var(--accent); min-height: 32px; }
+.chip-giorno { min-width: 48px; min-height: 40px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--muted); font-weight: 600; cursor: pointer; }
+.chip-giorno.fuoco { background: var(--fuoco); border-color: var(--fuoco); color: #fff; }
+.chip-giorno.bianco { background: var(--bianco); border-color: var(--bianco); color: #06121f; }
