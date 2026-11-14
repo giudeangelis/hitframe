@@ -407,3 +407,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); min-height: 32px; 
 .legenda-schema i { display: inline-block; width: 12px; height: 10px; margin-right: 5px; vertical-align: -1px; border-radius: 2px; }
 .passi-drill { margin: 6px 0 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }
 .passi-drill li::marker { color: var(--accent); font-weight: 800; }
+
+.tooltip-grafico { position: absolute; top: 4px; transform: translateX(-50%); background: var(--surface-2, #1c1c20); border: 1px solid var(--border); border-radius: 8px; padding: 6px 9px; font-size: 12px; pointer-events: none; white-space: nowrap; z-index: 2; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+.tooltip-grafico .t { color: var(--muted); margin-bottom: 2px; }
+.tooltip-grafico i { display: inline-block; width: 8px; height: 8px; border-radius: 99px; margin-right: 5px; }

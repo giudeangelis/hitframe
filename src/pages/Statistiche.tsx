@@ -1,0 +1,215 @@
+import { useLiveQuery } from 'dexie-react-hooks'
+import { BarChart3, Medal, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
+import { DOMANDE } from '../abilita/questionario'
+import { fmt2, tuttiDrill } from '../allenamento/servizi'
+import { GraficoLinee, Radar } from '../components/Grafici'
+import { Empty, PageHeader } from '../components/ui'
+import { db, getImp, normalizzaProfilo } from '../db/db'
+import { fmt } from '../lib/date'
+import { nomeLeggibile, trovaPerNome } from '../risultati/motore'
+import { pendenza, puntiForzaDebolezza, puntiGara, type Corso } from '../statistiche/calcoli'
+
+const f1 = (n: number) => n.toFixed(1).replace('.', ',')
+
+export default function Statistiche() {
+  const risultati = useLiveQuery(() => db.risultati.toArray())
+  const analisi = useLiveQuery(() => db.analisi.toArray())
+  const profilo = useLiveQuery(async () => normalizzaProfilo(await db.profilo.get('me')))
+  const prove = useLiveQuery(() => db.prove.toArray()) ?? []
+  const personali = useLiveQuery(() => db.drillPersonali.toArray()) ?? []
+  const eventi = useLiveQuery(() => db.eventi.toArray()) ?? []
+  const rivali = useLiveQuery(() => getImp<string[]>('rivali', [])) ?? []
+
+  const punti = useMemo(() => (risultati && analisi ? puntiGara(risultati, analisi) : []), [risultati, analisi])
+  const giudizi = useMemo(() => puntiForzaDebolezza(punti), [punti])
+
+  if (!risultati || !analisi || !profilo) return <div className="page" />
+
+  const et = punti.map((p) => fmt(p.data, 'd MMM'))
+  const trend = pendenza(punti.map((p) => p.pct))
+  const media = punti.length ? punti.reduce((a, p) => a + p.pct, 0) / punti.length : 0
+  const migliore = punti.length ? punti.reduce((a, p) => (p.pct > a.pct ? p : a)) : null
+
+  // Tipi di stage su tutte le gare
+  const corsi: Corso[] = ['Short', 'Medium', 'Long']
+  const perCorso = corsi.map((c) => {
+    let s = 0, k = 0
+    for (const p of punti) { const v = p.perCorso[c]; if (v) { s += v.pct * v.n; k += v.n } }
+    return { c, pct: k ? s / k : 0, k }
+  }).filter((x) => x.k > 0)
+
+  // Allenamento: ultimi 90 giorni
+  const da90 = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10)
+  const sessioni90 = eventi.filter((e) => e.completato && e.data >= da90 && (e.tipo === 'fuoco' || e.tipo === 'bianco'))
+  const colpi90 = sessioni90.reduce((a, e) => a + (e.colpiSparati ?? 0), 0)
+  const drills = tuttiDrill(personali)
+  const progressi = drills.map((d) => {
+    const pp = prove.filter((p) => p.drillId === d.id && p.tempo).sort((a, b) => a.creato.localeCompare(b.creato))
+    if (pp.length < 3) return null
+    const primo = pp.slice(0, 3).reduce((a, p) => a + p.tempo!, 0) / 3
+    const ultimo = pp.slice(-3).reduce((a, p) => a + p.tempo!, 0) / 3
+    return { d, n: pp.length, primo, ultimo, record: Math.min(...pp.map((p) => p.tempo!)), delta: (ultimo - primo) / primo }
+  }).filter((x): x is NonNullable<typeof x> => !!x).sort((a, b) => a.delta - b.delta)
+
+  // Abilità
+  const ab = profilo.abilita ?? {}
+  const assi = DOMANDE.filter((d) => ab[d.area] !== undefined)
+  const primoStorico = profilo.storicoAbilita?.[0]?.valori
+
+  return (
+    <div className="page">
+      <PageHeader title="Statistiche" sub="Andamento, punti di forza e cosa migliorare" />
+
+      {punti.length === 0 ? (
+        <div className="card">
+          <Empty icon={<BarChart3 size={28} />} text="Importa i risultati delle tue gare: qui vedrai l’andamento, la precisione, la velocità e gli errori gara dopo gara."
+            action={<Link to="/risultati" className="btn primary"><Medal size={18} /> Vai a Risultati</Link>} />
+        </div>
+      ) : (
+        <>
+          <div className="stats">
+            <div className="stat"><div className="v">{punti.length}</div><div className="l">Gare analizzate</div></div>
+            <div className="stat"><div className="v">{f1(media)}%</div><div className="l">Media in divisione</div></div>
+            <div className="stat"><div className="v" style={{ color: trend > 0.3 ? 'var(--ok)' : trend < -0.3 ? 'var(--fuoco)' : undefined }}>{trend >= 0 ? '+' : ''}{f1(trend)}</div><div className="l">Punti % per gara (tendenza)</div></div>
+          </div>
+
+          {giudizi.length > 0 && (
+            <section className="card">
+              <div className="card-title">Punti di forza e da migliorare</div>
+              <div className="list">
+                {giudizi.map((g) => (
+                  <div key={g.titolo + g.tipo} className="item" style={{ alignItems: 'flex-start' }}>
+                    {g.tipo === 'forte' ? <ThumbsUp size={18} color="var(--ok)" style={{ flexShrink: 0, marginTop: 2 }} /> : <ThumbsDown size={18} color="var(--fuoco)" style={{ flexShrink: 0, marginTop: 2 }} />}
+                    <div><div className="title">{g.titolo}</div><div className="meta">{g.testo}</div></div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="card">
+            <div className="card-title">Percentuale in divisione</div>
+            <GraficoLinee titolo="Percentuale in divisione gara per gara" etichette={et} formato={(n) => `${f1(n)}%`}
+              serie={[{ nome: 'Tu', valori: punti.map((p) => p.pct), colore: 'var(--accent)' }]} />
+            <div className="list" style={{ marginTop: 10 }}>
+              {[...punti].reverse().map((p) => (
+                <Link key={p.id} to={`/risultati/${p.id}`} className="item" style={{ padding: '8px 12px' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="title" style={{ fontSize: 14 }}>{p.gara}</div>
+                    <div className="meta">{fmt(p.data, 'd MMM yyyy')} · {p.pos}° su {p.tot} · {p.posClasse}° in classe su {p.totClasse}</div>
+                  </div>
+                  <b style={{ color: p === migliore ? 'var(--accent)' : undefined }}>{f1(p.pct)}%</b>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="card-title">Colpi in A</div>
+            <GraficoLinee titolo="Percentuale di colpi in A rispetto ai primi 10" etichette={et} formato={(n) => `${Math.round(n)}%`}
+              serie={[
+                { nome: 'Tu', valori: punti.map((p) => p.aPct * 100), colore: 'var(--accent)' },
+                { nome: 'Primi 10', valori: punti.map((p) => p.aPctTop10 * 100), colore: 'var(--muted)', tratteggio: true },
+              ]} />
+          </section>
+
+          <section className="card">
+            <div className="card-title">Tempo rispetto ai primi 10</div>
+            <GraficoLinee titolo="Tempo totale in percentuale della media dei primi 10" etichette={et} formato={(n) => `${Math.round(n)}`}
+              serie={[
+                { nome: 'Tu', valori: punti.map((p) => p.tempoRel * 100), colore: 'var(--accent)' },
+                { nome: 'Primi 10', valori: punti.map(() => 100), colore: 'var(--muted)', tratteggio: true },
+              ]} />
+            <p className="prose" style={{ fontSize: 12, margin: '6px 0 0' }}>100 = tempo medio dei primi 10. Sotto 100 sei più veloce.</p>
+          </section>
+
+          <section className="card">
+            <div className="card-title">Mancati ogni 100 colpi</div>
+            <GraficoLinee titolo="Mancati ogni 100 colpi rispetto ai primi 10" etichette={et} formato={(n) => f1(n)} minimo={0}
+              serie={[
+                { nome: 'Tu', valori: punti.map((p) => p.mancati100), colore: 'var(--accent)' },
+                { nome: 'Primi 10', valori: punti.map((p) => p.mancati100Top10), colore: 'var(--muted)', tratteggio: true },
+              ]} />
+            <p className="prose" style={{ fontSize: 12, margin: '6px 0 0' }}>
+              Mancati, no-shoot e procedure ti sono costati {f1(punti.reduce((a, p) => a + p.costoErrori, 0))} punti gara in totale.
+            </p>
+          </section>
+
+          {perCorso.length > 0 && (
+            <section className="card">
+              <div className="card-title">Per tipo di stage</div>
+              <div className="list">
+                {perCorso.map((x) => (
+                  <div key={x.c} style={{ display: 'grid', gridTemplateColumns: '64px 1fr 56px', gap: 10, alignItems: 'center', fontSize: 14 }}>
+                    <span className="label">{x.c}</span>
+                    <div className="progresso" style={{ marginTop: 0, height: 10 }}><span style={{ width: `${x.pct}%`, background: 'var(--accent)' }} /></div>
+                    <b style={{ textAlign: 'right' }}>{f1(x.pct)}%</b>
+                  </div>
+                ))}
+              </div>
+              <p className="prose" style={{ fontSize: 12, margin: '8px 0 0' }}>Media degli stage su {perCorso.reduce((a, x) => a + x.k, 0)} stage. Il tipo viene dal libretto quando è caricato, altrimenti dai colpi.</p>
+            </section>
+          )}
+
+          {rivali.length > 0 && risultati.length > 0 && (
+            <section className="card">
+              <div className="card-title">Avversari che segui</div>
+              <div className="list">
+                {rivali.map((n) => {
+                  const righe = [...risultati].sort((a, b) => a.data.localeCompare(b.data)).map((r) => ({ r, c: trovaPerNome(r, n), io: r.concorrenti.find((x) => x.num === r.mioNum) })).filter((x) => x.c)
+                  const davanti = righe.filter((x) => (x.io?.punti ?? 0) > x.c!.punti).length
+                  return (
+                    <div key={n} className="item" style={{ display: 'block' }}>
+                      <div className="title">{n} <span className="meta">· davanti tu in {davanti} gare su {righe.length}</span></div>
+                      <div className="chips" style={{ marginTop: 6 }}>
+                        {righe.map(({ r, c, io }) => (
+                          <span key={r.id} className="badge" style={{ color: (io?.punti ?? 0) > c!.punti ? 'var(--ok)' : 'var(--fuoco)' }}>{fmt(r.data, 'd MMM')}: tu {io?.pos}° · {nomeLeggibile(c!.nome).split(' ')[0]} {c!.pos}°</span>
+                        ))}
+                        {!righe.length && <span className="meta">Non presente nelle gare importate.</span>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
+        </>
+      )}
+
+      <section className="card">
+        <div className="card-title">Allenamento</div>
+        <div className="stats">
+          <div className="stat"><div className="v">{sessioni90.length}</div><div className="l">Sessioni in 90 giorni</div></div>
+          <div className="stat"><div className="v">{colpi90}</div><div className="l">Colpi sparati in 90 giorni</div></div>
+          <div className="stat"><div className="v">{prove.length}</div><div className="l">Prove registrate</div></div>
+        </div>
+        {progressi.length > 0 ? (
+          <div className="list" style={{ marginTop: 10 }}>
+            {progressi.slice(0, 6).map((x) => (
+              <Link key={x.d.id} to={`/allenamento/${x.d.id}`} className="item" style={{ padding: '8px 12px' }}>
+                <div style={{ flex: 1 }}>
+                  <div className="title" style={{ fontSize: 14 }}>{x.d.nome}</div>
+                  <div className="meta">{x.n} prove · da {fmt2(x.primo)} a {fmt2(x.ultimo)} s · record {fmt2(x.record)} s</div>
+                </div>
+                <b style={{ color: x.delta < 0 ? 'var(--ok)' : 'var(--fuoco)' }}>{x.delta < 0 ? '' : '+'}{Math.round(x.delta * 100)}%</b>
+              </Link>
+            ))}
+          </div>
+        ) : <p className="prose" style={{ margin: '10px 0 0', fontSize: 13 }}>Registra almeno 3 prove su un drill per vedere i progressi.</p>}
+      </section>
+
+      <section className="card">
+        <div className="card-title"><span>Abilità</span><Link to="/profilo">Questionario</Link></div>
+        {assi.length >= 3 ? (
+          <>
+            <Radar titolo="Radar delle abilità" assi={assi.map((d) => d.titolo)} valori={assi.map((d) => ab[d.area] ?? 0)}
+              confronto={primoStorico && profilo.storicoAbilita!.length > 1 ? assi.map((d) => primoStorico[d.area] ?? 0) : undefined} />
+            {primoStorico && profilo.storicoAbilita!.length > 1 && <p className="prose" style={{ fontSize: 12, margin: 0 }}>Tratteggio: il primo questionario. Giallo: l’ultimo.</p>}
+          </>
+        ) : <p className="prose" style={{ margin: 0, fontSize: 13 }}>Compila il questionario delle abilità nel Profilo per vedere il radar.</p>}
+      </section>
+    </div>
+  )
+}

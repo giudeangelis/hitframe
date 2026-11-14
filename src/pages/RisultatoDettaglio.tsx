@@ -1,9 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ArrowLeft, CalendarCheck, Dumbbell, Plus, Trash2, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DRILLS } from '../allenamento/drills'
-import { Segmented, useToast } from '../components/ui'
+import { Segmented, Sheet, useToast } from '../components/ui'
+import StageDisegno from '../components/StageDisegno'
+import { abbinaStage } from '../risultati/abbinamento'
 import { db } from '../db/db'
 import { fmtMedio, oggiKey } from '../lib/date'
 import { leggiDateGara } from '../analisi/date'
@@ -25,7 +27,6 @@ export default function RisultatoDettaglio() {
   const rid = Number(id)
   const r = useLiveQuery(() => db.risultati.get(rid), [rid])
   const [vista, setVista] = useState<Vista>('riepilogo')
-  const a = useMemo(() => (r ? analizza(r) : null), [r])
   const navigate = useNavigate()
   const [conferma, setConferma] = useState(false)
   // Libretto della stessa gara (Analisi gara): tipo di bersagli per stage
@@ -36,11 +37,24 @@ export default function RisultatoDettaglio() {
       if (!sez) continue
       const d = leggiDateGara(sez.info.date)
       const stessaData = d && r.data >= d.inizio && r.data <= addGiorni(d.fine, 2)
-      if ((r.eventoId && an.eventoId === r.eventoId) || stessaData) return { id: an.id!, stages: sez.stages }
+      if ((r.eventoId && an.eventoId === r.eventoId) || stessaData) return { id: an.id!, stages: sez.stages, pdf: an.pdf }
     }
     return null
   }, [r?.id, r?.eventoId, r?.data])
+  // abbinamento automatico degli stage (la numerazione dei risultati non segue il libretto)
+  useEffect(() => {
+    if (!r || !libretto || (r.abbinamento && r.abbinamento.analisiId === libretto.id)) return
+    const ab = abbinaStage(r, libretto.stages)
+    if (ab) void db.risultati.update(r.id!, { abbinamento: { analisiId: libretto.id, ...ab, manuale: false } })
+  }, [r, libretto])
+  const tipi = useMemo(() => {
+    if (!r?.abbinamento || !libretto || r.abbinamento.analisiId !== libretto.id) return undefined
+    const t: Record<number, 'Short' | 'Medium' | 'Long'> = {}
+    for (const [rn, bn] of Object.entries(r.abbinamento.mappa)) { const st = libretto.stages.find((z) => z.numero === bn); if (st) t[+rn] = st.tipo }
+    return t
+  }, [r?.abbinamento, libretto]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const a = r ? analizza(r, tipi) : null
   if (r === undefined) return <div className="page" />
   if (!r || !a) return <div className="page"><Link to="/risultati" className="btn ghost"><ArrowLeft size={18} /> Risultati</Link><div className="card">Risultato non trovato.</div></div>
 
@@ -75,7 +89,7 @@ export default function RisultatoDettaglio() {
         options={[{ value: 'riepilogo', label: 'Riepilogo' }, { value: 'stage', label: 'Stage' }, { value: 'avversari', label: 'Avversari' }, { value: 'allenamento', label: 'Allena' }]} />
 
       {vista === 'riepilogo' && <Riepilogo a={a} r={r} />}
-      {vista === 'stage' && <Stage a={a} libretto={libretto ?? null} />}
+      {vista === 'stage' && <Stage a={a} r={r} libretto={libretto ?? null} />}
       {vista === 'avversari' && <Avversari r={r} />}
       {vista === 'allenamento' && <Allenamento a={a} r={r} />}
 
@@ -162,8 +176,12 @@ function Riepilogo({ a, r }: { a: Analisi; r: RisultatoGara }) {
   )
 }
 
-function Stage({ a, libretto }: { a: Analisi; libretto: { id: number; stages: StageLetto[] } | null }) {
+type Libretto = { id: number; stages: StageLetto[]; pdf: Blob | null }
+
+function Stage({ a, r, libretto }: { a: Analisi; r: RisultatoGara; libretto: Libretto | null }) {
   const [ordine, setOrdine] = useState<'numero' | 'costo'>('costo')
+  const [verifica, setVerifica] = useState(false)
+  const ab = libretto && r.abbinamento?.analisiId === libretto.id ? r.abbinamento : null
   const lista = [...a.stages].sort((x, y) => (ordine === 'numero' ? x.n - y.n : (y.guadagnoErrori + y.guadagnoPrecisione) - (x.guadagnoErrori + x.guadagnoPrecisione) || x.s.pct - y.s.pct))
   return (
     <section className="card">
@@ -172,6 +190,16 @@ function Stage({ a, libretto }: { a: Analisi; libretto: { id: number; stages: St
         <Segmented<'numero' | 'costo'> label="Ordine" value={ordine} onChange={setOrdine} options={[{ value: 'costo', label: 'Dove hai perso' }, { value: 'numero', label: 'In ordine' }]} />
       </div>
       {!libretto && <p className="prose" style={{ margin: '0 0 10px', fontSize: 13 }}>Carica il libretto della gara in Analisi gara per vedere anche metalli, no-shoot e attivazioni di ogni stage.</p>}
+      {ab && (
+        <div className="card avviso" style={{ marginBottom: 10 }}>
+          <div style={{ flex: 1 }}>
+            I numeri dei risultati non seguono il libretto: ho abbinato gli stage da punti, no-shoot, metalli e tempi.
+            {ab.manuale ? ' Abbinamento verificato da te.' : ab.incerti.length ? ` ${ab.incerti.length} da verificare.` : ''}
+          </div>
+          <button className="btn" style={{ minHeight: 36 }} onClick={() => setVerifica(true)}>Verifica</button>
+        </div>
+      )}
+      {verifica && ab && libretto && <VerificaAbbinamento r={r} libretto={libretto} onClose={() => setVerifica(false)} />}
       <div className="list">
         {lista.map((x) => {
           const s = x.s
@@ -186,13 +214,15 @@ function Stage({ a, libretto }: { a: Analisi; libretto: { id: number; stages: St
                 {s.pos}° su {x.totale} · HF {f2(s.hf)} (primo {f2(x.hfMax)}) · {f2(s.tempo)} s (il vincitore {f2(x.tempoVincitore)} s)
               </div>
               {(() => {
-                const st = libretto?.stages.find((z) => z.numero === x.n)
+                const bn = ab?.mappa[x.n]
+                const st = bn ? libretto?.stages.find((z) => z.numero === bn) : undefined
                 if (!st) return null
                 const met = metalli(st)
                 return (
                   <div className="meta" style={{ marginTop: 4 }}>
+                    <b style={{ color: 'var(--text)' }}>Libretto: stage {st.numero}</b>{ab!.incerti.includes(x.n) && !ab!.manuale ? <span style={{ color: 'var(--accent)' }}> (da verificare)</span> : ''}{' · '}
                     {[met ? `${met} metalli` : '', st.bersagli.noShoot ? `${st.bersagli.noShoot} no-shoot` : '', st.flag.mobili ? 'attivazioni' : '', st.flag.manoDebole ? 'mano debole' : st.flag.manoForte ? 'mano forte' : ''].filter(Boolean).join(' · ') || 'solo carta'}
-                    {' · '}<Link to={`/analisi-gara/${libretto!.id}/stage/${x.n}`}>studio dello stage</Link>
+                    {' · '}<Link to={`/analisi-gara/${libretto!.id}/stage/${st.numero}`}>studio dello stage</Link>
                   </div>
                 )
               })()}
@@ -213,6 +243,53 @@ function Stage({ a, libretto }: { a: Analisi; libretto: { id: number; stages: St
         })}
       </div>
     </section>
+  )
+}
+
+function VerificaAbbinamento({ r, libretto, onClose }: { r: RisultatoGara; libretto: Libretto; onClose: () => void }) {
+  const ab = r.abbinamento!
+  const me = r.concorrenti.find((c) => c.num === r.mioNum)!
+  const [mappa, setMappa] = useState<Record<number, number>>({ ...ab.mappa })
+  const nr = Object.keys(r.valoreStage).map(Number).sort((x, y) => x - y)
+  function scegli(rn: number, bn: number) {
+    // scambio: lo stage del libretto resta abbinato a un solo stage dei risultati
+    const altro = nr.find((k) => mappa[k] === bn)
+    setMappa((m) => ({ ...m, [rn]: bn, ...(altro !== undefined ? { [altro]: m[rn] } : {}) }))
+  }
+  async function salva() {
+    await db.risultati.update(r.id!, { abbinamento: { ...ab, mappa, manuale: true, incerti: [] } })
+    onClose()
+  }
+  return (
+    <Sheet title="Abbina gli stage al libretto" onClose={onClose}>
+      <p className="prose" style={{ marginTop: 0, fontSize: 13 }}>Per ogni stage della classifica scegli lo stage del libretto. Il disegno ti aiuta a riconoscerlo; si possono scambiare solo stage con gli stessi punti.</p>
+      <div className="list">
+        {nr.map((rn) => {
+          const s = me.stages[rn]
+          const st = libretto.stages.find((z) => z.numero === mappa[rn])
+          const opzioni = libretto.stages.filter((z) => z.puntiMax === r.valoreStage[rn])
+          return (
+            <div key={rn} className="item" style={{ display: 'block' }}>
+              <div className="row">
+                <div style={{ flex: 1 }}>
+                  <div className="title">Classifica stage {rn} · {r.valoreStage[rn]} punti{ab.incerti.includes(rn) && !ab.manuale ? <span style={{ color: 'var(--accent)', fontWeight: 600 }}> · da verificare</span> : ''}</div>
+                  <div className="meta">Tu: {s ? `${f2(s.tempo)} s · ${s.A ?? '?'}A ${s.C ?? '?'}C${s.MI ? ` ${s.MI}M` : ''}` : '—'}</div>
+                </div>
+                <select className="select" style={{ width: 'auto' }} aria-label={`Stage del libretto per lo stage ${rn}`} value={mappa[rn]} onChange={(e) => scegli(rn, Number(e.target.value))}>
+                  {opzioni.map((z) => <option key={z.numero} value={z.numero}>Libretto {z.numero}</option>)}
+                </select>
+              </div>
+              {st && libretto.pdf && <div style={{ marginTop: 8 }}><StageDisegno analisiId={libretto.id} pdf={libretto.pdf} pagina={st.pagina} tagliaY={st.tabellaTopY} alt={`Disegno dello stage ${st.numero} del libretto`} /></div>}
+            </div>
+          )
+        })}
+      </div>
+      <div className="row" style={{ marginTop: 12 }}>
+        <div className="spacer" />
+        <button className="btn" onClick={onClose}>Annulla</button>
+        <button className="btn primary" onClick={salva}>Conferma abbinamento</button>
+      </div>
+    </Sheet>
   )
 }
 

@@ -37,6 +37,8 @@ export interface RisultatoGara {
   concorrenti: Concorrente[]
   conVerify: boolean
   avversari?: number[] // scelti dal tiratore
+  /** Abbinamento con il libretto di gara (Analisi gara): stage risultati → stage libretto */
+  abbinamento?: { analisiId: number; mappa: Record<number, number>; incerti: number[]; manuale: boolean }
 }
 
 const MESI: Record<string, string> = { gen: '01', feb: '02', mar: '03', apr: '04', mag: '05', giu: '06', lug: '07', ago: '08', set: '09', ott: '10', nov: '11', dic: '12', jan: '01', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', dec: '12' }
@@ -158,7 +160,7 @@ export interface AnalisiStage {
   guadagnoTempo5: number // punti gara con il 5% di tempo in meno
 }
 
-export function analizza(r: RisultatoGara) {
+export function analizza(r: RisultatoGara, tipi?: Record<number, 'Short' | 'Medium' | 'Long'>) {
   const me = r.concorrenti.find((c) => c.num === r.mioNum)!
   const nStages = Object.keys(r.valoreStage).map(Number).sort((a, b) => a - b)
   const base = { pos: me.pos, punti: me.punti, pct: me.pct }
@@ -178,7 +180,7 @@ export function analizza(r: RisultatoGara) {
       hfMax: Math.max(...righe.map((x) => x.hf)),
       tempoVincitore: vincitore?.tempo ?? 0,
       colpi,
-      corso: colpi <= 12 ? 'Short' : colpi <= 24 ? 'Medium' : 'Long',
+      corso: tipi?.[n] ?? (colpi <= 12 ? 'Short' : colpi <= 24 ? 'Medium' : 'Long'),
       persiPrecisione: (s.C ?? 0) * (5 - v.C) + (s.D ?? 0) * (5 - v.D),
       persiErrori: (s.MI ?? 0) * 15 + (s.NS ?? 0) * 10 + (s.PE ?? 0) * 10,
       guadagnoErrori: r.conVerify ? gain({ [n]: { pts: ptsSenzaErrori(s) } }) : 0,
