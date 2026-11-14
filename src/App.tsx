@@ -17,6 +17,7 @@ import Timer from './pages/Timer'
 // Il modulo Analisi gara (con pdf.js) si carica solo quando lo apri
 const AnalisiGare = lazy(() => import('./pages/AnalisiGare'))
 const AnalisiDettaglio = lazy(() => import('./pages/AnalisiDettaglio'))
+const StudioStage = lazy(() => import('./pages/StudioStage'))
 
 // HashRouter: funziona offline e su GitHub Pages senza configurazioni del server
 export default function App() {
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="timer" element={<Timer />} />
             <Route path="analisi-gara" element={<Suspense fallback={<div className="page" />}><AnalisiGare /></Suspense>} />
             <Route path="analisi-gara/:id" element={<Suspense fallback={<div className="page" />}><AnalisiDettaglio /></Suspense>} />
+            <Route path="analisi-gara/:id/stage/:n" element={<Suspense fallback={<div className="page" />}><StudioStage /></Suspense>} />
             {MODULI_FUTURI.map((m) => (
               <Route key={m.path} path={m.path.slice(1)} element={<InArrivo modulo={m} />} />
             ))}

@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { AlertTriangle, ArrowLeft, CalendarCheck, CalendarPlus, CalendarRange, ChevronDown, Hand, Target, Timer, Trash2, Zap } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CalendarCheck, CalendarPlus, CalendarRange, ChevronDown, Hand, MapPinned, Target, Timer, Trash2, Zap } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import EventoForm from '../components/EventoForm'
@@ -191,7 +191,8 @@ export default function AnalisiDettaglio() {
         <div className="nav-section" style={{ padding: '4px 2px' }}>Stage</div>
         {stages.map((s, i) => (
           <StageCard key={`${a.sezione}-${s.numero}`} s={s} stima={stime[i]} aperto={aperto === s.numero}
-            onToggle={() => setAperto(aperto === s.numero ? null : s.numero)} analisiId={analisiId} pdf={a.pdf} />
+            onToggle={() => setAperto(aperto === s.numero ? null : s.numero)} analisiId={analisiId} pdf={a.pdf}
+            haMappa={!!a.mappe?.[`${a.sezione}-${s.numero}`]} />
         ))}
       </section>
 
@@ -221,8 +222,8 @@ export default function AnalisiDettaglio() {
   )
 }
 
-function StageCard({ s, stima, aperto, onToggle, analisiId, pdf }: {
-  s: StageLetto; stima?: StimaStage; aperto: boolean; onToggle: () => void; analisiId: number; pdf: Blob | null
+function StageCard({ s, stima, aperto, onToggle, analisiId, pdf, haMappa }: {
+  s: StageLetto; stima?: StimaStage; aperto: boolean; onToggle: () => void; analisiId: number; pdf: Blob | null; haMappa: boolean
 }) {
   const nMet = metalli(s)
   const speciali = partenzaSpeciale(s)
@@ -239,6 +240,7 @@ function StageCard({ s, stima, aperto, onToggle, analisiId, pdf }: {
             {s.flag.mobili && <span className="badge gara"><Zap size={12} /> attivazioni</span>}
             {(s.flag.manoForte || s.flag.manoDebole) && <span className="badge fuoco"><Hand size={12} /> {s.flag.manoDebole ? 'mano debole' : 'mano forte'}</span>}
             {speciali.map((x) => <span key={x} className="badge bianco">{x}</span>)}
+            {haMappa && <span className="badge" style={{ color: 'var(--accent)' }}><MapPinned size={12} /> piano</span>}
           </div>
         </div>
         {stima && (
@@ -251,6 +253,7 @@ function StageCard({ s, stima, aperto, onToggle, analisiId, pdf }: {
       </button>
       {aperto && (
         <div className="stage-body">
+          <Link to={`/analisi-gara/${analisiId}/stage/${s.numero}`} className="btn primary" style={{ alignSelf: 'flex-start' }}><MapPinned size={18} /> {haMappa ? 'Apri lo studio dello stage' : 'Studia lo stage'}</Link>
           <StageDisegno analisiId={analisiId} pdf={pdf} pagina={s.pagina} tagliaY={s.tabellaTopY} alt={`Disegno dello stage ${s.numero}`} />
           {stima && (
             <div className="stima-righe">

@@ -1,5 +1,6 @@
 import { RotateCcw, Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { QuestionarioAbilita, RiepilogoAbilita } from '../components/Abilita'
 import { numOrNull, PageHeader, Segmented, useToast } from '../components/ui'
 import { db, normalizzaProfilo, nowIso } from '../db/db'
 import {
@@ -37,6 +38,7 @@ export default function Profilo() {
   const [p, setP] = useState<P | null>(null)
   const [testi, setTesti] = useState<Record<string, string>>({})
   const [sporco, setSporco] = useState(false)
+  const [questionario, setQuestionario] = useState(false)
 
   useEffect(() => {
     db.profilo.get('me').then((x) => {
@@ -153,6 +155,8 @@ export default function Profilo() {
             options={[{ value: 'destra', label: 'Destra' }, { value: 'sinistra', label: 'Sinistra' }]} />
         </div>
       </section>
+
+      <RiepilogoAbilita abilita={p.abilita} storico={p.storicoAbilita} onQuestionario={() => setQuestionario(true)} />
 
       <section className="card form">
         <div className="card-title" style={{ marginBottom: 0 }}>Arma principale</div>
@@ -276,6 +280,11 @@ export default function Profilo() {
           </div>
         </section>
       </div>
+
+      {questionario && (
+        <QuestionarioAbilita iniziale={p.abilita} onClose={() => setQuestionario(false)}
+          onSalvato={(a) => setP((prev) => prev && { ...prev, abilita: a, storicoAbilita: [...(prev.storicoAbilita ?? []), { data: new Date().toISOString().slice(0, 10), valori: a }] })} />
+      )}
 
       {sporco && (
         <div className="row" style={{ position: 'sticky', bottom: 'calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 12px)', justifyContent: 'flex-end' }}>

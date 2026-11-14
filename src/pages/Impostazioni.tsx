@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Download, Sparkles, Trash2, Upload } from 'lucide-react'
+import { Download, Trash2, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { ImpostazioniGoogle } from '../components/GoogleSync'
+import ImpostazioniAI from '../components/ImpostazioniAI'
 import { PageHeader, useToast } from '../components/ui'
 import { cancellaTutto, ripristinaBackup, scaricaBackup } from '../db/backup'
 import { db } from '../db/db'
@@ -54,13 +55,7 @@ export default function Impostazioni() {
 
       <ImpostazioniGoogle />
 
-      <section className="card form">
-        <div className="card-title" style={{ marginBottom: 0 }}><span><Sparkles size={18} style={{ verticalAlign: -3 }} /> Assistente AI</span><span className="badge">Fase 5</span></div>
-        <p className="prose" style={{ margin: 0 }}>
-          Collegherai l'AI che preferisci (Claude, ChatGPT, Gemini, Mistral o un modello locale) con la tua chiave.
-          Sarà facoltativa: senza AI Hitframe funziona comunque.
-        </p>
-      </section>
+      <ImpostazioniAI />
 
       <section className="card form">
         <div className="card-title" style={{ marginBottom: 0 }}>Zona pericolosa</div>
@@ -76,7 +71,7 @@ export default function Impostazioni() {
         </div>
       </section>
 
-      <p className="prose" style={{ fontSize: 12, textAlign: 'center' }}>Hitframe · versione 0.4.0</p>
+      <p className="prose" style={{ fontSize: 12, textAlign: 'center' }}>Hitframe · versione 0.5.0</p>
     </div>
   )
 }

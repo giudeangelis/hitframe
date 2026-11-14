@@ -1,0 +1,134 @@
+/**
+ * Collegamento all'AI scelta dall'utente, con la sua chiave. Le richieste partono dal dispositivo
+ * direttamente verso il fornitore: nessun server di Hitframe in mezzo.
+ */
+import { getImp, setImp } from '../db/db'
+
+export type Fornitore = 'claude' | 'gemini' | 'openai'
+
+export interface ConfigAI {
+  fornitore: Fornitore
+  chiave: string
+  modello: string
+}
+
+export const MODELLI_DEFAULT: Record<Fornitore, string> = {
+  claude: 'claude-sonnet-5-5',
+  gemini: 'gemini-3.8-flash',
+  openai: 'gpt-5-mini',
+}
+
+export const NOMI_FORNITORI: Record<Fornitore, string> = {
+  claude: 'Claude (Anthropic)',
+  gemini: 'Gemini (Google)',
+  openai: 'ChatGPT (OpenAI)',
+}
+
+export const LINK_CHIAVI: Record<Fornitore, string> = {
+  claude: 'https://console.anthropic.com/settings/keys',
+  gemini: 'https://aistudio.google.com/apikey',
+  openai: 'https://platform.openai.com/api-keys',
+}
+
+export const getConfigAI = () => getImp<ConfigAI | null>('ai', null)
+export const setConfigAI = (c: ConfigAI | null) => setImp('ai', c)
+
+export class ErroreAI extends Error {}
+
+interface Richiesta {
+  sistema: string
+  testo: string
+  immagine?: { base64: string; mime: string }
+  maxToken?: number
+}
+
+async function leggiErrore(r: Response): Promise<string> {
+  try {
+    const j = await r.json()
+    return j?.error?.message ?? j?.error?.status ?? `Errore ${r.status}`
+  } catch {
+    return `Errore ${r.status}`
+  }
+}
+
+/** Invia testo (e un'immagine facoltativa) e restituisce il testo della risposta. */
+export async function chiedi(cfg: ConfigAI, req: Richiesta): Promise<string> {
+  const modello = cfg.modello.trim() || MODELLI_DEFAULT[cfg.fornitore]
+  const maxToken = req.maxToken ?? 4000
+  let r: Response
+  try {
+    if (cfg.fornitore === 'claude') {
+      const content: unknown[] = []
+      if (req.immagine) content.push({ type: 'image', source: { type: 'base64', media_type: req.immagine.mime, data: req.immagine.base64 } })
+      content.push({ type: 'text', text: req.testo })
+      r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': cfg.chiave.trim(),
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({ model: modello, max_tokens: maxToken, system: req.sistema, messages: [{ role: 'user', content }] }),
+      })
+      if (!r.ok) throw new ErroreAI(await leggiErrore(r))
+      const j = await r.json()
+      return (j.content ?? []).filter((c: { type: string }) => c.type === 'text').map((c: { text: string }) => c.text).join('\n')
+    }
+    if (cfg.fornitore === 'gemini') {
+      const parts: unknown[] = []
+      if (req.immagine) parts.push({ inline_data: { mime_type: req.immagine.mime, data: req.immagine.base64 } })
+      parts.push({ text: req.testo })
+      r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modello)}:generateContent?key=${encodeURIComponent(cfg.chiave.trim())}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: req.sistema }] },
+          contents: [{ role: 'user', parts }],
+          generationConfig: { maxOutputTokens: maxToken, responseMimeType: 'application/json' },
+        }),
+      })
+      if (!r.ok) throw new ErroreAI(await leggiErrore(r))
+      const j = await r.json()
+      return (j.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '').join('\n')
+    }
+    // OpenAI
+    const content: unknown[] = [{ type: 'text', text: req.testo }]
+    if (req.immagine) content.push({ type: 'image_url', image_url: { url: `data:${req.immagine.mime};base64,${req.immagine.base64}` } })
+    r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${cfg.chiave.trim()}` },
+      body: JSON.stringify({
+        model: modello,
+        max_completion_tokens: maxToken,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'system', content: req.sistema }, { role: 'user', content }],
+      }),
+    })
+    if (!r.ok) throw new ErroreAI(await leggiErrore(r))
+    const j = await r.json()
+    return j.choices?.[0]?.message?.content ?? ''
+  } catch (e) {
+    if (e instanceof ErroreAI) throw e
+    throw new ErroreAI('Connessione all’AI non riuscita. Controlla la rete.')
+  }
+}
+
+/** Estrae il primo oggetto JSON da una risposta testuale. */
+export function estraiJson<T>(testo: string): T {
+  const pulito = testo.replace(/```json|```/g, '')
+  const a = pulito.indexOf('{')
+  const b = pulito.lastIndexOf('}')
+  if (a < 0 || b < a) throw new ErroreAI('L’AI non ha restituito dati leggibili.')
+  try {
+    return JSON.parse(pulito.slice(a, b + 1)) as T
+  } catch {
+    throw new ErroreAI('L’AI ha restituito dati non validi.')
+  }
+}
+
+export async function provaCollegamento(cfg: ConfigAI): Promise<string> {
+  const t = await chiedi(cfg, { sistema: 'Rispondi solo con JSON.', testo: 'Rispondi con {"ok": true}', maxToken: 50 })
+  estraiJson(t)
+  return 'Collegamento riuscito'
+}

@@ -355,3 +355,30 @@ input[type=range] { width: 100%; accent-color: var(--accent); min-height: 32px; 
 .chip-giorno { min-width: 48px; min-height: 40px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--muted); font-weight: 600; cursor: pointer; }
 .chip-giorno.fuoco { background: var(--fuoco); border-color: var(--fuoco); color: #fff; }
 .chip-giorno.bianco { background: var(--bianco); border-color: var(--bianco); color: #06121f; }
+
+/* ---------- Abilità ---------- */
+.abilita-lista { display: flex; flex-direction: column; gap: 8px; }
+.abilita-riga { display: grid; grid-template-columns: minmax(0, 1fr) 110px 92px; gap: 10px; align-items: center; font-size: 14px; }
+.abilita-riga .l { font-size: 12px; color: var(--muted); text-align: right; }
+.barre { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; }
+.barre span { height: 8px; border-radius: 3px; background: var(--surface-3); }
+.barre span.on { background: var(--accent); }
+@media (max-width: 420px) { .abilita-riga { grid-template-columns: minmax(0, 1fr) 90px; } .abilita-riga .l { display: none; } }
+
+/* ---------- Mappa stage ---------- */
+.mappa { display: flex; flex-direction: column; gap: 10px; }
+.mappa-tela { position: relative; width: 100%; background: #fff; border-radius: 10px; overflow: hidden; user-select: none; -webkit-user-select: none; }
+.mappa-tela img, .mappa-tela svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.chip-giorno.attivo { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.piano-passi { display: flex; flex-direction: column; gap: 0; counter-reset: passo; }
+.passo { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); align-items: start; }
+.passo:first-child { border-top: 0; }
+.passo .ic { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 15px; background: var(--surface-3); }
+.passo.posizione .ic { background: var(--accent); color: var(--accent-ink); }
+.passo.ricarica .ic { background: var(--bianco); color: #06121f; }
+.passo.movimento .ic { background: var(--gara); color: #120a24; }
+.passo .t { font-weight: 600; }
+.passo .d { font-size: 13px; color: var(--muted); }
+.passo .s { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.confronto { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.confronto .stat.vince { border-color: var(--accent); }

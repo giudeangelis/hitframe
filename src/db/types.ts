@@ -85,6 +85,9 @@ export interface Profilo {
   manoForte: 'destra' | 'sinistra'
   armaDettagli: DettagliArma
   riferimenti: RiferimentiGara
+  /** Livelli 1–5 dal questionario delle abilità */
+  abilita?: Partial<Record<string, number>>
+  storicoAbilita?: { data: string; valori: Partial<Record<string, number>> }[]
   tempi: TempiPersonali
   aggiornato: string // ISO
 }
@@ -175,6 +178,8 @@ export interface AnalisiGara {
   lettura: import('../analisi/tipi').GaraLetta
   sezione: number // libretto scelto (es. Handgun o PCC)
   eventoId: number | null
+  /** Mappe degli stage, chiave "sezione-numero" */
+  mappe?: Record<string, import('../analisi/mappa').MappaStage>
 }
 
 /** Una prova di un drill (a fuoco o in bianco). */

@@ -5,7 +5,8 @@ import { linkMaps } from '../lib/maps'
 import { dopoSalvataggio, primaDiEliminare } from '../google/calendar'
 import { MapPin } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { DRILLS } from '../allenamento/drills'
+import { tuttiDrill } from '../allenamento/servizi'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { oggiKey } from '../lib/date'
 import { numOrNull, Segmented, Sheet, useToast } from './ui'
 
@@ -50,6 +51,7 @@ export default function EventoForm({
   const toast = useToast()
   const [e, setE] = useState<Evento>(() => evento ?? nuovoEvento(data ?? oggiKey(), tipo))
   const [confermaElimina, setConfermaElimina] = useState(false)
+  const personali = useLiveQuery(() => db.drillPersonali.toArray()) ?? []
   const set = <K extends keyof Evento>(k: K, v: Evento[K]) => setE((p) => ({ ...p, [k]: v }))
   const gara = e.gara ?? garaVuota()
   const setGara = <K extends keyof typeof gara>(k: K, v: (typeof gara)[K]) => setE((p) => ({ ...p, gara: { ...(p.gara ?? garaVuota()), [k]: v } }))
@@ -226,7 +228,7 @@ export default function EventoForm({
             <span className="label">Drill della sessione</span>
             <div className="chips">
               {e.drill.map((id) => {
-                const d = DRILLS.find((x) => x.id === id)
+                const d = tuttiDrill(personali).find((x) => x.id === id)
                 return d ? <Link key={id} to={`/allenamento/${id}`} className="badge" style={{ textDecoration: 'none', padding: '6px 10px' }} onClick={onClose}>{d.nome}</Link> : null
               })}
             </div>
