@@ -1,9 +1,9 @@
 import { db } from './db'
 
-const TABELLE = () => [db.profilo, db.eventi, db.diario, db.impostazioni, db.analisi, db.prove, db.drillPersonali, db.componenti, db.ricette, db.crono, db.lotti, db.armi, db.interventi]
+const TABELLE = () => [db.profilo, db.eventi, db.diario, db.impostazioni, db.analisi, db.prove, db.drillPersonali, db.componenti, db.ricette, db.crono, db.lotti, db.armi, db.interventi, db.risultati]
 
 export const BACKUP_FORMATO = 'hitframe-backup'
-export const BACKUP_VERSIONE = 4
+export const BACKUP_VERSIONE = 5
 
 export interface Backup {
   formato: typeof BACKUP_FORMATO
@@ -23,11 +23,12 @@ export interface Backup {
     lotti?: unknown[]
     armi?: unknown[]
     interventi?: unknown[]
+    risultati?: unknown[]
   }
 }
 
 export async function creaBackup(): Promise<Backup> {
-  const [profilo, eventi, diario, impostazioni, analisi, prove, drillPersonali, componenti, ricette, crono, lotti, armi, interventi] = await Promise.all([
+  const [profilo, eventi, diario, impostazioni, analisi, prove, drillPersonali, componenti, ricette, crono, lotti, armi, interventi, risultati] = await Promise.all([
     db.profilo.toArray(),
     db.eventi.toArray(),
     db.diario.toArray(),
@@ -41,13 +42,14 @@ export async function creaBackup(): Promise<Backup> {
     db.lotti.toArray(),
     db.armi.toArray(),
     db.interventi.toArray(),
+    db.risultati.toArray(),
   ])
   return {
     formato: BACKUP_FORMATO,
     versione: BACKUP_VERSIONE,
     creato: new Date().toISOString(),
     // i PDF non entrano nel backup: restano le analisi, senza i disegni degli stage
-    dati: { profilo, eventi, diario, impostazioni, analisi: analisi.map((a) => ({ ...a, pdf: null })), prove, drillPersonali, componenti, ricette, crono, lotti, armi, interventi },
+    dati: { profilo, eventi, diario, impostazioni, analisi: analisi.map((a) => ({ ...a, pdf: null })), prove, drillPersonali, componenti, ricette, crono, lotti, armi, interventi, risultati },
   }
 }
 
@@ -95,6 +97,7 @@ export async function ripristinaBackup(testo: string): Promise<{ eventi: number;
     await db.lotti.bulkPut((d.lotti ?? []) as never[])
     await db.armi.bulkPut((d.armi ?? []) as never[])
     await db.interventi.bulkPut((d.interventi ?? []) as never[])
+    await db.risultati.bulkPut((d.risultati ?? []) as never[])
   })
   return { eventi: d.eventi?.length ?? 0, diario: d.diario?.length ?? 0, analisi: d.analisi?.length ?? 0 }
 }

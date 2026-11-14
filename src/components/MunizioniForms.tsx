@@ -49,7 +49,7 @@ export function ComponenteForm({ comp, tipo, onClose }: { comp?: Componente; tip
         <div className="field">
           <label htmlFor="co-nome">Nome</label>
           <input id="co-nome" className="input" value={c.nome} onChange={(e) => setC({ ...c, nome: e.target.value })} required
-            placeholder={{ palle: 'Es. HN 147 gr RN coated', polvere: 'Es. Vihtavuori N320', inneschi: 'Es. Fiocchi small pistol', bossoli: 'Es. 9x21 misti' }[c.tipo]} />
+            placeholder={{ palle: 'Es. 125 gr RN coated', polvere: 'Es. Vihtavuori N320', inneschi: 'Es. Fiocchi small pistol', bossoli: 'Es. 9x21 misti' }[c.tipo]} />
         </div>
         <div className="fields-2">
           <div className="field">
@@ -95,10 +95,10 @@ export function RicettaForm({ ricetta, onClose, onCreata }: { ricetta?: Ricetta;
   const toast = useToast()
   const comp = useLiveQuery(() => db.componenti.toArray()) ?? []
   const [r, setR] = useState<Ricetta>(() => ricetta ?? {
-    nome: '', calibro: '9x21', palla: '', pesoPalla: 147, tipoPalla: TIPI_PALLA[0], polvere: '', carica: null, innesco: '', bossolo: '', oal: null, note: '',
+    nome: '', calibro: '9x21', palla: '', pesoPalla: 125, tipoPalla: TIPI_PALLA[0], polvere: '', carica: null, innesco: '', bossolo: '', oal: null, note: '',
     pallaId: null, polvereId: null, innescoId: null, bossoloId: null, archiviata: false, creato: nowIso(),
   })
-  const [f, setF] = useState({ peso: txt(ricetta?.pesoPalla ?? 147), carica: txt(ricetta?.carica), oal: txt(ricetta?.oal) })
+  const [f, setF] = useState({ peso: txt(ricetta?.pesoPalla ?? 125), carica: txt(ricetta?.carica), oal: txt(ricetta?.oal) })
   const set = <K extends keyof Ricetta>(k: K, v: Ricetta[K]) => setR((p) => ({ ...p, [k]: v }))
 
   function collega(campo: 'pallaId' | 'polvereId' | 'innescoId' | 'bossoloId', testo: 'palla' | 'polvere' | 'innesco' | 'bossolo', id: string) {
@@ -138,7 +138,7 @@ export function RicettaForm({ ricetta, onClose, onCreata }: { ricetta?: Ricetta;
         <div className="fields-2">
           <div className="field">
             <label htmlFor="ri-nome">Nome</label>
-            <input id="ri-nome" className="input" value={r.nome} onChange={(e) => set('nome', e.target.value)} placeholder="Es. Gara 147 coated" />
+            <input id="ri-nome" className="input" value={r.nome} onChange={(e) => set('nome', e.target.value)} placeholder="Es. Gara 125 coated" />
           </div>
           <div className="field">
             <label htmlFor="ri-cal">Calibro</label>

@@ -5,6 +5,7 @@ import {
   Crosshair,
   FileSearch,
   Home,
+  Medal,
   LayoutGrid,
   Package,
   Settings,
@@ -49,6 +50,7 @@ export const MODULI_EXTRA: Modulo[] = [
   { path: '/diario', label: 'Diario', descrizione: 'Sessioni, sensazioni, note', icon: BookOpen, pronto: true },
   { path: '/profilo', label: 'Profilo', descrizione: 'Atleta, arma e tempi', icon: User, pronto: true },
   { path: '/analisi-gara', label: 'Analisi gara', descrizione: 'PDF di gara, piani degli stage', icon: FileSearch, pronto: true },
+  { path: '/risultati', label: 'Risultati', descrizione: 'Classifiche, errori, avversari', icon: Medal, pronto: true },
   { path: '/munizioni', label: 'Munizioni', descrizione: 'Ricette, cronografo, scorte', icon: Package, pronto: true },
   { path: '/attrezzatura', label: 'Attrezzatura', descrizione: 'Colpi, manutenzione, usura', icon: Wrench, pronto: true },
 ]

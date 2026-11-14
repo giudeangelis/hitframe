@@ -105,6 +105,10 @@ export default function StudioStage() {
       partenza: s!.posizionePartenza,
       obiettivo: Math.round(p.tempo * 100) / 100,
       creato: nowIso(),
+      stage: { analisiId, numero: s!.numero, stile: p.stile },
+      allestimento: `Ricostruisci lo stage ${s!.numero} come nel disegno, anche in forma ridotta: stesse posizioni, stessi angoli, distanze il più possibile simili.`,
+      passi: p.passi.map((x) => `${x.titolo}: ${x.dettaglio}`),
+      attenzione: p.rischi,
     })) as number
     const idDrill = `p-${did}`
     // collega alla prossima sessione a fuoco prima della gara

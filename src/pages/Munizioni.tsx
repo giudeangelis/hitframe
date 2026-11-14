@@ -212,7 +212,7 @@ export default function Munizioni() {
 }
 
 function CalcolatorePF({ divisione }: { divisione: Divisione }) {
-  const [peso, setPeso] = useState('147')
+  const [peso, setPeso] = useState('125')
   const [vel, setVel] = useState('')
   const [sd, setSd] = useState('')
   const [unita, setUnita] = useState<'ms' | 'fps'>('ms')

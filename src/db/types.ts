@@ -215,6 +215,13 @@ export interface DrillPersonale {
   partenza: string
   obiettivo: number | null
   creato: string
+  /** Disegno e spiegazione */
+  schema?: import('../allenamento/schemi').Schema
+  allestimento?: string
+  passi?: string[]
+  attenzione?: string[]
+  /** Drill nato dallo studio di uno stage */
+  stage?: { analisiId: number; numero: number; stile: 'aggressivo' | 'conservativo' }
 }
 
 /* ---------- Fase 3: munizioni ---------- */

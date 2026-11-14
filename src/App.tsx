@@ -21,6 +21,8 @@ import Attrezzatura, { ArmaDettaglio } from './pages/Attrezzatura'
 const AnalisiGare = lazy(() => import('./pages/AnalisiGare'))
 const AnalisiDettaglio = lazy(() => import('./pages/AnalisiDettaglio'))
 const StudioStage = lazy(() => import('./pages/StudioStage'))
+const Risultati = lazy(() => import('./pages/Risultati'))
+const RisultatoDettaglio = lazy(() => import('./pages/RisultatoDettaglio'))
 
 // HashRouter: funziona offline e su GitHub Pages senza configurazioni del server
 export default function App() {
@@ -38,6 +40,8 @@ export default function App() {
             <Route path="allenamento" element={<Allenamento />} />
             <Route path="allenamento/:id" element={<DrillDettaglio />} />
             <Route path="timer" element={<Timer />} />
+            <Route path="risultati" element={<Suspense fallback={<div className="page" />}><Risultati /></Suspense>} />
+            <Route path="risultati/:id" element={<Suspense fallback={<div className="page" />}><RisultatoDettaglio /></Suspense>} />
             <Route path="munizioni" element={<Munizioni />} />
             <Route path="munizioni/ricetta/:id" element={<RicettaDettaglio />} />
             <Route path="attrezzatura" element={<Attrezzatura />} />

@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type { AnalisiGara, Arma, Componente, DrillPersonale, Evento, Impostazione, Intervento, Lotto, Profilo, Prova, Ricetta, SessioneCrono, VoceDiario } from './types'
+import type { RisultatoGara } from '../risultati/motore'
 import { ARMA_DEFAULT, RIFERIMENTI_DEFAULT, TEMPI_DEFAULT } from './types'
 
 export class HitframeDB extends Dexie {
@@ -16,6 +17,7 @@ export class HitframeDB extends Dexie {
   lotti!: EntityTable<Lotto, 'id'>
   armi!: EntityTable<Arma, 'id'>
   interventi!: EntityTable<Intervento, 'id'>
+  risultati!: EntityTable<RisultatoGara, 'id'>
 
   constructor() {
     super('hitframe')
@@ -43,6 +45,10 @@ export class HitframeDB extends Dexie {
       lotti: '++id, ricettaId, data',
       armi: '++id, nome',
       interventi: '++id, armaId, data',
+    })
+    // v5: risultati di gara
+    this.version(5).stores({
+      risultati: '++id, data, eventoId',
     })
   }
 }

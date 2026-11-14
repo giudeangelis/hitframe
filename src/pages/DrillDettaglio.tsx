@@ -3,6 +3,7 @@ import { ArrowLeft, Pencil, Play, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import DrillForm from '../components/DrillForm'
+import DrillIstruzioni from '../components/DrillIstruzioni'
 import ProvaForm from '../components/ProvaForm'
 import { Empty, useToast } from '../components/ui'
 import { CLASSE_A_OBIETTIVO, obiettivoPer, type ClasseObiettivo } from '../allenamento/drills'
@@ -79,6 +80,8 @@ export default function DrillDettaglio() {
           <dt>Partenza</dt><dd>{d.partenza || '—'}</dd>
         </dl>
       </section>
+
+      <DrillIstruzioni d={d} personale={personale} />
 
       {!d.personale && (
         <section className="card">

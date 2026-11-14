@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { CATEGORIE_DRILL } from '../allenamento/drills'
+import { EditorSchema } from './DrillSchema'
 import { db, nowIso } from '../db/db'
 import type { DrillPersonale } from '../db/types'
 import { numOrNull, Segmented, Sheet, useToast } from './ui'
@@ -8,14 +9,18 @@ export default function DrillForm({ drill, onClose }: { drill?: DrillPersonale; 
   const toast = useToast()
   const [d, setD] = useState<DrillPersonale>(() => drill ?? {
     nome: '', categoria: 'Transizioni', modalita: 'fuoco', descrizione: '', distanza: '', bersagli: '', colpi: 6, partenza: 'Mani in resa, arma in fondina', obiettivo: null, creato: nowIso(),
+    schema: { elementi: [{ t: 'tiratore', x: 0, y: 0 }, { t: 'carta', x: 0, y: 7, id: 'T1', nota: '×2' }] },
   })
+  const [passiTxt, setPassiTxt] = useState((drill?.passi ?? []).join('\n'))
+  const [attTxt, setAttTxt] = useState((drill?.attenzione ?? []).join('\n'))
   const [obTxt, setObTxt] = useState(drill?.obiettivo ? String(drill.obiettivo).replace('.', ',') : '')
   const [conferma, setConferma] = useState(false)
   const set = <K extends keyof DrillPersonale>(k: K, v: DrillPersonale[K]) => setD((p) => ({ ...p, [k]: v }))
 
   async function salva(e: React.FormEvent) {
     e.preventDefault()
-    const pulito = { ...d, nome: d.nome.trim(), obiettivo: numOrNull(obTxt) }
+    const righe = (t: string) => t.split('\n').map((x) => x.replace(/^\s*(\d+[.)]|[-•])\s*/, '').trim()).filter(Boolean)
+    const pulito = { ...d, nome: d.nome.trim(), obiettivo: numOrNull(obTxt), passi: righe(passiTxt), attenzione: righe(attTxt) }
     if (pulito.id) await db.drillPersonali.put(pulito)
     else await db.drillPersonali.add(pulito)
     toast(drill ? 'Drill aggiornato' : 'Drill creato')
@@ -69,6 +74,26 @@ export default function DrillForm({ drill, onClose }: { drill?: DrillPersonale; 
           <label htmlFor="dr-part">Partenza</label>
           <input id="dr-part" className="input" value={d.partenza} onChange={(e) => set('partenza', e.target.value)} />
         </div>
+        <details className="guida" open={!drill?.stage}>
+          <summary>Disegno e spiegazione</summary>
+          <div className="form" style={{ marginTop: 10 }}>
+            {drill?.stage
+              ? <p className="prose" style={{ margin: 0 }}>Il disegno viene dallo studio dello stage {drill.stage.numero}.</p>
+              : <EditorSchema schema={d.schema ?? { elementi: [] }} onChange={(sc) => set('schema', sc)} />}
+            <div className="field">
+              <label htmlFor="dr-all">Allestimento</label>
+              <input id="dr-all" className="input" value={d.allestimento ?? ''} onChange={(e) => set('allestimento', e.target.value)} placeholder="Cosa preparare: bersagli, distanze, tavolo…" />
+            </div>
+            <div className="field">
+              <label htmlFor="dr-passi">Esecuzione, un passo per riga</label>
+              <textarea id="dr-passi" className="textarea" style={{ minHeight: 90 }} value={passiTxt} onChange={(e) => setPassiTxt(e.target.value)} placeholder={'Mani in resa\nAl beep due colpi su T1\n…'} />
+            </div>
+            <div className="field">
+              <label htmlFor="dr-att">Attenzione a, uno per riga</label>
+              <textarea id="dr-att" className="textarea" value={attTxt} onChange={(e) => setAttTxt(e.target.value)} />
+            </div>
+          </div>
+        </details>
         <div className="row">
           {drill && (conferma
             ? <button type="button" className="btn danger" onClick={elimina}>Conferma eliminazione</button>
