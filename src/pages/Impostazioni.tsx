@@ -1,0 +1,79 @@
+import { useLiveQuery } from 'dexie-react-hooks'
+import { Download, Sparkles, Trash2, Upload } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { PageHeader, useToast } from '../components/ui'
+import { cancellaTutto, ripristinaBackup, scaricaBackup } from '../db/backup'
+import { db } from '../db/db'
+
+export default function Impostazioni() {
+  const toast = useToast()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [errore, setErrore] = useState('')
+  const [confermaCancella, setConfermaCancella] = useState(false)
+  const conteggi = useLiveQuery(async () => ({ eventi: await db.eventi.count(), diario: await db.diario.count() }))
+
+  async function importa(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setErrore('')
+    try {
+      const r = await ripristinaBackup(await file.text())
+      toast(`Ripristinati ${r.eventi} eventi e ${r.diario} voci`)
+    } catch (err) {
+      setErrore(err instanceof Error ? err.message : 'Ripristino non riuscito.')
+    }
+  }
+
+  async function cancella() {
+    await cancellaTutto()
+    setConfermaCancella(false)
+    toast('Tutti i dati sono stati cancellati')
+  }
+
+  return (
+    <div className="page">
+      <PageHeader title="Impostazioni" sub="I tuoi dati restano su questo dispositivo" />
+
+      <section className="card form">
+        <div className="card-title" style={{ marginBottom: 0 }}>Backup</div>
+        <p className="prose" style={{ margin: 0 }}>
+          Hitframe salva tutto in locale, senza account. Scarica un backup ogni tanto e conservalo
+          (iCloud Drive, Google Drive o dove preferisci): ti serve anche per passare i dati dall'iPhone al Mac.
+        </p>
+        {conteggi && <div className="meta" style={{ color: 'var(--muted)', fontSize: 13 }}>Ora salvati: {conteggi.eventi} eventi, {conteggi.diario} voci di diario.</div>}
+        <div className="row">
+          <button className="btn primary" onClick={() => scaricaBackup().then(() => toast('Backup scaricato'))}><Download size={18} /> Scarica backup</button>
+          <button className="btn" onClick={() => fileRef.current?.click()}><Upload size={18} /> Ripristina</button>
+          <input ref={fileRef} type="file" accept="application/json,.json" onChange={importa} hidden />
+        </div>
+        <div className="hint" style={{ color: 'var(--faint)', fontSize: 12 }}>Il ripristino sostituisce tutti i dati presenti su questo dispositivo.</div>
+        {errore && <div role="alert" style={{ color: 'var(--accent-strong)', fontWeight: 600 }}>{errore}</div>}
+      </section>
+
+      <section className="card form">
+        <div className="card-title" style={{ marginBottom: 0 }}><span><Sparkles size={18} style={{ verticalAlign: -3 }} /> Assistente AI</span><span className="badge">Fase 5</span></div>
+        <p className="prose" style={{ margin: 0 }}>
+          Collegherai l'AI che preferisci (Claude, ChatGPT, Gemini, Mistral o un modello locale) con la tua chiave.
+          Sarà facoltativa: senza AI Hitframe funziona comunque.
+        </p>
+      </section>
+
+      <section className="card form">
+        <div className="card-title" style={{ marginBottom: 0 }}>Zona pericolosa</div>
+        <div className="row">
+          {confermaCancella ? (
+            <>
+              <button className="btn danger" onClick={cancella}><Trash2 size={18} /> Sì, cancella tutto</button>
+              <button className="btn ghost" onClick={() => setConfermaCancella(false)}>Annulla</button>
+            </>
+          ) : (
+            <button className="btn danger" onClick={() => setConfermaCancella(true)}><Trash2 size={18} /> Cancella tutti i dati</button>
+          )}
+        </div>
+      </section>
+
+      <p className="prose" style={{ fontSize: 12, textAlign: 'center' }}>Hitframe · versione 0.2.0</p>
+    </div>
+  )
+}

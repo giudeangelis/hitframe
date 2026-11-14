@@ -1,0 +1,80 @@
+import { db } from './db'
+
+export const BACKUP_FORMATO = 'hitframe-backup'
+export const BACKUP_VERSIONE = 2
+
+export interface Backup {
+  formato: typeof BACKUP_FORMATO
+  versione: number
+  creato: string
+  dati: {
+    profilo: unknown[]
+    eventi: unknown[]
+    diario: unknown[]
+    impostazioni: unknown[]
+    analisi?: unknown[]
+  }
+}
+
+export async function creaBackup(): Promise<Backup> {
+  const [profilo, eventi, diario, impostazioni, analisi] = await Promise.all([
+    db.profilo.toArray(),
+    db.eventi.toArray(),
+    db.diario.toArray(),
+    db.impostazioni.toArray(),
+    db.analisi.toArray(),
+  ])
+  return {
+    formato: BACKUP_FORMATO,
+    versione: BACKUP_VERSIONE,
+    creato: new Date().toISOString(),
+    // i PDF non entrano nel backup: restano le analisi, senza i disegni degli stage
+    dati: { profilo, eventi, diario, impostazioni, analisi: analisi.map((a) => ({ ...a, pdf: null })) },
+  }
+}
+
+export async function scaricaBackup() {
+  const backup = await creaBackup()
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  const data = backup.creato.slice(0, 10)
+  a.href = url
+  a.download = `hitframe-backup-${data}.json`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+/** Sostituisce tutti i dati con quelli del backup. */
+export async function ripristinaBackup(testo: string): Promise<{ eventi: number; diario: number; analisi: number }> {
+  let parsed: Backup
+  try {
+    parsed = JSON.parse(testo)
+  } catch {
+    throw new Error('Il file non è un JSON valido.')
+  }
+  if (parsed?.formato !== BACKUP_FORMATO || !parsed.dati) {
+    throw new Error('Il file non è un backup di Hitframe.')
+  }
+  if (parsed.versione > BACKUP_VERSIONE) {
+    throw new Error("Il backup arriva da una versione più recente dell'app. Aggiorna Hitframe e riprova.")
+  }
+  const d = parsed.dati
+  await db.transaction('rw', [db.profilo, db.eventi, db.diario, db.impostazioni, db.analisi], async () => {
+    await Promise.all([db.profilo.clear(), db.eventi.clear(), db.diario.clear(), db.impostazioni.clear(), db.analisi.clear()])
+    await db.profilo.bulkPut((d.profilo ?? []) as never[])
+    await db.eventi.bulkPut((d.eventi ?? []) as never[])
+    await db.diario.bulkPut((d.diario ?? []) as never[])
+    await db.impostazioni.bulkPut((d.impostazioni ?? []) as never[])
+    await db.analisi.bulkPut((d.analisi ?? []) as never[])
+  })
+  return { eventi: d.eventi?.length ?? 0, diario: d.diario?.length ?? 0, analisi: d.analisi?.length ?? 0 }
+}
+
+export async function cancellaTutto() {
+  await db.transaction('rw', [db.profilo, db.eventi, db.diario, db.impostazioni, db.analisi], async () => {
+    await Promise.all([db.profilo.clear(), db.eventi.clear(), db.diario.clear(), db.impostazioni.clear(), db.analisi.clear()])
+  })
+}

@@ -1,0 +1,164 @@
+import { addDays } from 'date-fns'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { BookOpen, FileSearch, PenLine, Trophy, UserRound } from 'lucide-react'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import DiarioForm from '../components/DiarioForm'
+import EventoForm from '../components/EventoForm'
+import EventoItem from '../components/EventoItem'
+import { Empty, Wordmark } from '../components/ui'
+import { db } from '../db/db'
+import type { Evento, VoceDiario } from '../db/types'
+import { capitalize, fmtLungo, giorniDa, oggiKey, quando, toKey } from '../lib/date'
+
+export default function Home() {
+  const oggi = oggiKey()
+  const tra14 = toKey(addDays(new Date(), 14))
+  const meseInizio = `${oggi.slice(0, 7)}-01`
+  const [eventoAperto, setEventoAperto] = useState<Evento | null>(null)
+  const [diario, setDiario] = useState<{ voce?: VoceDiario } | null>(null)
+
+  const profilo = useLiveQuery(() => db.profilo.get('me'))
+  const prossimi = useLiveQuery(() => db.eventi.where('data').between(oggi, tra14, true, true).sortBy('data')) ?? []
+  const prossimaGara = useLiveQuery(async () => {
+    const gare = await db.eventi.where('data').aboveOrEqual(oggi).filter((e) => e.tipo === 'gara').sortBy('data')
+    return gare[0] ?? null
+  })
+  const daRegistrare = useLiveQuery(() =>
+    db.eventi.where('data').between(toKey(addDays(new Date(), -10)), oggi, true, false)
+      .filter((e) => !e.completato && e.tipo !== 'altro').sortBy('data'),
+  ) ?? []
+  const delMese = useLiveQuery(() => db.eventi.where('data').between(meseInizio, oggi, true, true).toArray()) ?? []
+  const ultimeVoci = useLiveQuery(() => db.diario.orderBy('data').reverse().limit(3).toArray()) ?? []
+
+  const fuoco = delMese.filter((e) => e.tipo === 'fuoco' && e.completato).length
+  const bianco = delMese.filter((e) => e.tipo === 'bianco' && e.completato).length
+  const colpi = delMese.reduce((s, e) => s + (e.completato ? e.colpiSparati ?? 0 : 0), 0)
+
+  const analisiGara = useLiveQuery(
+    async () => (prossimaGara?.id ? (await db.analisi.where('eventoId').equals(prossimaGara.id).first()) ?? null : null),
+    [prossimaGara?.id],
+  )
+  const giorniGara = prossimaGara ? giorniDa(prossimaGara.data) : null
+  const nome = profilo?.nome?.split(' ')[0]
+
+  return (
+    <div className="page">
+      <div className="mobile-brand"><Wordmark size={26} /></div>
+
+      <header className="page-header">
+        <div>
+          <h1>{nome ? `Ciao ${nome}` : 'Benvenuto'}</h1>
+          <div className="sub">{capitalize(fmtLungo(oggi))}</div>
+        </div>
+      </header>
+
+      {!profilo && (
+        <Link to="/profilo" className="item" style={{ borderColor: 'var(--accent)' }}>
+          <UserRound size={22} color="var(--accent)" />
+          <div style={{ flex: 1 }}>
+            <div className="title">Completa il tuo profilo</div>
+            <div className="meta">Divisione, classe e tempi personali: servono per stime e piani di allenamento.</div>
+          </div>
+        </Link>
+      )}
+
+      <section className="hero">
+        {prossimaGara ? (
+          <button onClick={() => setEventoAperto(prossimaGara)} style={{ all: 'unset', cursor: 'pointer', display: 'block', width: '100%' }}>
+            <div className="kicker"><Trophy size={14} style={{ verticalAlign: -2 }} /> Prossima gara</div>
+            <h2>{prossimaGara.titolo}</h2>
+            <div className="meta" style={{ color: 'var(--muted)', marginTop: 4 }}>
+              {capitalize(fmtLungo(prossimaGara.data))}{prossimaGara.luogo ? ` · ${prossimaGara.luogo}` : ''}
+            </div>
+            <div className="countdown">
+              {giorniGara === 0 ? <span className="n">Oggi</span> : (
+                <>
+                  <span className="n">{giorniGara}</span>
+                  <span className="u">{giorniGara === 1 ? 'giorno' : 'giorni'}</span>
+                </>
+              )}
+              <span className="spacer" />
+              {prossimaGara.gara && !prossimaGara.gara.iscritto && <span className="badge">Da iscrivere</span>}
+            </div>
+          </button>
+        ) : null}
+        {prossimaGara && (
+          <div className="row" style={{ marginTop: 14 }}>
+            {analisiGara ? (
+              <Link to={`/analisi-gara/${analisiGara.id}`} className="btn"><FileSearch size={18} /> Apri analisi gara</Link>
+            ) : (
+              <Link to="/analisi-gara" className="btn"><FileSearch size={18} /> Carica il PDF della gara</Link>
+            )}
+          </div>
+        )}
+        {!prossimaGara && (
+          <>
+            <div className="kicker">Obiettivo</div>
+            <h2>Nessuna gara in calendario</h2>
+            <p className="prose" style={{ margin: '8px 0 14px' }}>Aggiungi la prossima gara: Hitframe conterà i giorni e, nelle prossime fasi, costruirà il piano di allenamento attorno a lei.</p>
+            <div className="row">
+              <Link to="/calendario?nuovo=gara" className="btn primary"><Trophy size={18} /> Aggiungi gara</Link>
+              <Link to="/analisi-gara" className="btn"><FileSearch size={18} /> Da PDF</Link>
+            </div>
+          </>
+        )}
+      </section>
+
+      <div className="stats" aria-label="Questo mese">
+        <div className="stat"><div className="v" style={{ color: 'var(--fuoco)' }}>{fuoco}</div><div className="l">A fuoco questo mese</div></div>
+        <div className="stat"><div className="v" style={{ color: 'var(--bianco)' }}>{bianco}</div><div className="l">In bianco questo mese</div></div>
+        <div className="stat"><div className="v">{colpi}</div><div className="l">Colpi sparati</div></div>
+      </div>
+
+      <div className="row">
+        <Link to="/calendario?nuovo=fuoco" className="btn" style={{ flex: 1 }}><span className="dot fuoco" /> Fuoco</Link>
+        <Link to="/calendario?nuovo=bianco" className="btn" style={{ flex: 1 }}><span className="dot bianco" /> In bianco</Link>
+        <button className="btn" style={{ flex: 1 }} onClick={() => setDiario({})}><PenLine size={16} /> Diario</button>
+      </div>
+
+      {daRegistrare.length > 0 && (
+        <section className="card">
+          <div className="card-title"><span>Da registrare</span></div>
+          <p className="prose" style={{ margin: '0 0 10px', fontSize: 13 }}>Segna come svolti e annota i colpi sparati.</p>
+          <div className="list">
+            {daRegistrare.map((e) => <EventoItem key={e.id} e={e} onClick={() => setEventoAperto(e)} />)}
+          </div>
+        </section>
+      )}
+
+      <div className="grid-2" style={{ alignItems: 'start' }}>
+        <section className="card">
+          <div className="card-title"><span>Prossimi 14 giorni</span><Link to="/calendario">Calendario</Link></div>
+          {prossimi.length ? (
+            <div className="list">{prossimi.map((e) => <EventoItem key={e.id} e={e} onClick={() => setEventoAperto(e)} />)}</div>
+          ) : (
+            <Empty text="Nessun allenamento in programma." action={<Link to="/calendario?nuovo=fuoco" className="btn">Pianifica</Link>} />
+          )}
+        </section>
+
+        <section className="card">
+          <div className="card-title"><span>Dal diario</span><Link to="/diario">Tutto</Link></div>
+          {ultimeVoci.length ? (
+            <div className="list">
+              {ultimeVoci.map((v) => (
+                <button key={v.id} className="item" onClick={() => setDiario({ voce: v })}>
+                  <BookOpen size={18} color="var(--faint)" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="title">{v.titolo}</div>
+                    <div className="meta">{quando(v.data)} · umore {v.umore}/5</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <Empty text="Ancora nessuna voce." action={<button className="btn" onClick={() => setDiario({})}>Scrivi</button>} />
+          )}
+        </section>
+      </div>
+
+      {eventoAperto && <EventoForm key={eventoAperto.id} evento={eventoAperto} onClose={() => setEventoAperto(null)} />}
+      {diario && <DiarioForm voce={diario.voce} onClose={() => setDiario(null)} />}
+    </div>
+  )
+}
