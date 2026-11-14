@@ -425,3 +425,17 @@ input[type=range] { width: 100%; accent-color: var(--accent); min-height: 32px; 
 .nav-sublink:hover { color: var(--text); }
 .nav-sublink.active { color: var(--accent); }
 @media (min-width: 900px) { .topbar, .sottomenu { display: none; } }
+
+/* Stage designer */
+.titolo-stage { font-family: var(--display); font-size: 30px; font-weight: 900; font-style: italic; text-transform: uppercase; background: transparent; border-color: transparent; padding-left: 4px; }
+.titolo-stage:focus { border-color: var(--border); }
+.soloprint { display: none; }
+@media print {
+  body { background: #fff !important; color: #000 !important; }
+  .sidebar, .tabbar, .topbar, .sottomenu, .noprint, .toast { display: none !important; }
+  .main { padding: 0 !important; }
+  .soloprint { display: block; }
+  .card, .stat { background: #fff !important; border-color: #ccc !important; color: #000 !important; }
+  .titolo-stage { color: #000; }
+  .prose, .meta, .l, .d { color: #333 !important; }
+}

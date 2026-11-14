@@ -7,6 +7,8 @@ import { Empty, PageHeader } from '../components/ui'
 import { db } from '../db/db'
 import type { Evento } from '../db/types'
 import { capitalize, fmtLungo, giorniDa, oggiKey } from '../lib/date'
+import { MARE_URL, linkIscrizione } from '../lib/mare'
+import { ExternalLink } from 'lucide-react'
 
 /** Una gara è una scheda sola: prima (libretto, studio) e dopo (risultati). */
 export default function Gare() {
@@ -42,7 +44,9 @@ export default function Gare() {
           </div>
         </button>
         <div className="chips" style={{ marginTop: 10 }}>
-          {g.gara?.iscritto ? <span className="badge" style={{ color: 'var(--ok)' }}><Check size={12} /> iscritto</span> : futura ? <span className="badge" style={{ color: 'var(--accent)' }}>da iscrivere</span> : null}
+          {g.gara?.iscritto ? <span className="badge" style={{ color: 'var(--ok)' }}><Check size={12} /> iscritto</span> : futura ? (
+            <a href={linkIscrizione(g.gara?.iscrizioneUrl)} target="_blank" rel="noreferrer" className="badge" style={{ color: 'var(--accent)', padding: '6px 10px' }}><ExternalLink size={12} /> Iscriviti su MA.RE.</a>
+          ) : null}
           {an ? <Link to={`/analisi-gara/${an.id}`} className="badge" style={{ padding: '6px 10px' }}><FileSearch size={12} /> Libretto e studio</Link>
             : <Link to="/analisi-gara" className="badge" style={{ padding: '6px 10px' }}><Plus size={12} /> Carica il libretto</Link>}
           {ri ? <Link to={`/risultati/${ri.id}`} className="badge" style={{ padding: '6px 10px', color: 'var(--accent)' }}><Medal size={12} /> {me ? `${me.pos}° · ${me.pct.toFixed(1).replace('.', ',')}%` : 'Risultati'}</Link>
@@ -55,7 +59,10 @@ export default function Gare() {
   return (
     <div className="page">
       <PageHeader title="Le mie gare" sub="Prima della gara il libretto e lo studio, dopo i risultati"
-        actions={<button className="btn primary" onClick={() => setForm({})}><Plus size={18} /> Gara</button>} />
+        actions={<>
+          <button className="btn primary" onClick={() => setForm({})}><Plus size={18} /> Gara</button>
+          <a className="btn" href={MARE_URL} target="_blank" rel="noreferrer"><ExternalLink size={16} /> MA.RE.</a>
+        </>} />
       <div className="card-title" style={{ marginBottom: -8 }}>In arrivo</div>
       {prossime.length ? prossime.map((g) => scheda(g, true)) : <div className="card"><Empty text="Nessuna gara in calendario." action={<Link to="/analisi-gara" className="btn"><FileSearch size={18} /> Crea dal PDF del libretto</Link>} /></div>}
       {passate.length > 0 && <><div className="card-title" style={{ marginBottom: -8 }}>Disputate</div>{passate.map((g) => scheda(g, false))}</>}

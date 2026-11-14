@@ -2,12 +2,10 @@ import { lazy, Suspense } from 'react'
 import { HashRouter, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import { ToastProvider } from './components/ui'
-import { MODULI_FUTURI } from './modules'
 import Calendario from './pages/Calendario'
 import Diario from './pages/Diario'
 import Home from './pages/Home'
 import Impostazioni from './pages/Impostazioni'
-import InArrivo from './pages/InArrivo'
 import Profilo from './pages/Profilo'
 import Allenamento from './pages/Allenamento'
 import DrillDettaglio from './pages/DrillDettaglio'
@@ -24,6 +22,7 @@ const AnalisiDettaglio = lazy(() => import('./pages/AnalisiDettaglio'))
 const StudioStage = lazy(() => import('./pages/StudioStage'))
 const Risultati = lazy(() => import('./pages/Risultati'))
 const Statistiche = lazy(() => import('./pages/Statistiche'))
+const StageDesigner = lazy(() => import('./pages/StageDesigner'))
 const RisultatoDettaglio = lazy(() => import('./pages/RisultatoDettaglio'))
 
 // HashRouter: funziona offline e su GitHub Pages senza configurazioni del server
@@ -43,6 +42,8 @@ export default function App() {
             <Route path="timer" element={<Timer />} />
             <Route path="sessioni" element={<Sessioni />} />
             <Route path="gare" element={<Gare />} />
+            <Route path="stage-designer" element={<Suspense fallback={<div className="page" />}><StageDesigner /></Suspense>} />
+            <Route path="stage-designer/:id" element={<Suspense fallback={<div className="page" />}><StageDesigner /></Suspense>} />
             <Route path="statistiche" element={<Suspense fallback={<div className="page" />}><Statistiche /></Suspense>} />
             <Route path="risultati" element={<Suspense fallback={<div className="page" />}><Risultati /></Suspense>} />
             <Route path="risultati/:id" element={<Suspense fallback={<div className="page" />}><RisultatoDettaglio /></Suspense>} />
@@ -53,9 +54,6 @@ export default function App() {
             <Route path="analisi-gara" element={<Suspense fallback={<div className="page" />}><AnalisiGare /></Suspense>} />
             <Route path="analisi-gara/:id" element={<Suspense fallback={<div className="page" />}><AnalisiDettaglio /></Suspense>} />
             <Route path="analisi-gara/:id/stage/:n" element={<Suspense fallback={<div className="page" />}><StudioStage /></Suspense>} />
-            {MODULI_FUTURI.map((m) => (
-              <Route key={m.path} path={m.path.slice(1)} element={<InArrivo modulo={m} />} />
-            ))}
             <Route path="*" element={<Home />} />
           </Route>
         </Routes>

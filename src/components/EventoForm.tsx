@@ -6,6 +6,7 @@ import { dopoSalvataggio, primaDiEliminare } from '../google/calendar'
 import { MapPin } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { tuttiDrill } from '../allenamento/servizi'
+import { linkIscrizione } from '../lib/mare'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { oggiKey } from '../lib/date'
 import { numOrNull, Segmented, Sheet, useToast } from './ui'
@@ -191,7 +192,11 @@ export default function EventoForm({
             )}
             <div className="field">
               <label htmlFor="ev-url">Link iscrizione</label>
-              <input id="ev-url" type="url" className="input" value={gara.iscrizioneUrl} onChange={(x) => setGara('iscrizioneUrl', x.target.value)} placeholder="https://mare2.fitds.it/" />
+              <div className="row" style={{ flexWrap: 'nowrap' }}>
+                <input id="ev-url" type="url" className="input" style={{ flex: 1 }} value={gara.iscrizioneUrl} onChange={(x) => setGara('iscrizioneUrl', x.target.value)} placeholder="https://mare2.fitds.it/" />
+                <a className="btn" href={linkIscrizione(gara.iscrizioneUrl)} target="_blank" rel="noreferrer">MA.RE.</a>
+              </div>
+              <span className="hint">Vuoto: si apre il portale MA.RE. della FITDS.</span>
             </div>
           </>
         ) : (

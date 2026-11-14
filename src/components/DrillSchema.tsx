@@ -11,7 +11,7 @@ const LINEARI: TipoElemento[] = ['muro', 'freccia', 'linea']
 
 interface Vista { minX: number; maxX: number; minY: number; maxY: number; W: number; H: number; sx: number; sy: number }
 
-function calcolaVista(el: ElementoSchema[], fissa?: { minX: number; maxX: number; minY: number; maxY: number }): Vista {
+function calcolaVista(el: ElementoSchema[], fissa?: { minX: number; maxX: number; minY: number; maxY: number }, hMax = 400): Vista {
   let minX: number, maxX: number, minY: number, maxY: number
   if (fissa) ({ minX, maxX, minY, maxY } = fissa)
   else {
@@ -22,7 +22,7 @@ function calcolaVista(el: ElementoSchema[], fissa?: { minX: number; maxX: number
   }
   const W = 360
   const sx = W / (maxX - minX)
-  const sy = Math.min(sx, 400 / (maxY - minY))
+  const sy = Math.min(sx, hMax / (maxY - minY))
   return { minX, maxX, minY, maxY, W, H: (maxY - minY) * sy, sx, sy }
 }
 
@@ -94,6 +94,10 @@ function Elemento({ e, v, sel }: { e: ElementoSchema; v: Vista; sel: boolean }) 
       const l = 1.3 * v.sx
       return <g style={evid}><rect x={x - l / 2} y={y - l / 2} width={l} height={l} fill="none" stroke="var(--muted)" strokeDasharray="5 3" strokeWidth={1.5} />{e.id && <text x={x - l / 2 + 4} y={y - l / 2 + 11} fontSize={9} fill="var(--muted)">{e.id}</text>}</g>
     }
+    case 'barile': {
+      const r = Math.max(7, 0.3 * v.sx)
+      return <g style={evid}><circle cx={x} cy={y} r={r} fill="#1f5fae" stroke="#163f72" strokeWidth={1.5} /><circle cx={x} cy={y} r={r * 0.55} fill="none" stroke="#0e2a4d" strokeWidth={2} /></g>
+    }
     case 'tavolo': {
       const w = 1.2 * v.sx, h = Math.max(10, 0.5 * v.sy)
       return <g style={evid}><rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={2} fill={COL.tavolo} /><text x={x} y={y + 3} textAnchor="middle" fontSize={8} fill="#fff">tavolo</text></g>
@@ -150,18 +154,32 @@ export function DrillSchema({ schema, titolo }: { schema: Schema; titolo: string
 const STRUMENTI: { t: TipoElemento | 'sposta'; label: string }[] = [
   { t: 'sposta', label: 'Sposta' }, { t: 'carta', label: 'Carta' }, { t: 'mini', label: 'Mini' }, { t: 'noshoot', label: 'No-shoot' },
   { t: 'popper', label: 'Popper' }, { t: 'miniPopper', label: 'Mini popper' }, { t: 'piastra', label: 'Piastra' }, { t: 'tiratore', label: 'Tiratore' },
-  { t: 'box', label: 'Box' }, { t: 'tavolo', label: 'Tavolo' }, { t: 'muro', label: 'Parete' }, { t: 'linea', label: 'Fault line' }, { t: 'freccia', label: 'Movimento' },
+  { t: 'box', label: 'Box' }, { t: 'tavolo', label: 'Tavolo' }, { t: 'barile', label: 'Barile' }, { t: 'muro', label: 'Parete' }, { t: 'linea', label: 'Fault line' }, { t: 'freccia', label: 'Movimento' },
 ]
 
 const arrot = (n: number) => Math.round(n * 4) / 4
 
-export function EditorSchema({ schema, onChange }: { schema: Schema; onChange: (s: Schema) => void }) {
+export type Mappatore = (x: number, y: number) => [number, number]
+
+export function EditorSchema({ schema, onChange, campo, extra, onSelect, strumenti }: {
+  schema: Schema; onChange: (s: Schema) => void
+  /** campo in metri (stage designer); senza, l'editor dei drill da 12 o 25 m */
+  campo?: { larghezza: number; profondita: number }
+  /** disegni aggiuntivi sopra lo schema (raggi visivi, percorso) */
+  extra?: (m: Mappatore) => React.ReactNode
+  onSelect?: (i: number | null) => void
+  strumenti?: (TipoElemento | 'sposta')[]
+}) {
   const [strumento, setStrumento] = useState<TipoElemento | 'sposta'>('carta')
-  const [sel, setSel] = useState<number | null>(null)
+  const [sel, setSelInt] = useState<number | null>(null)
+  const setSel = (i: number | null) => { setSelInt(i); onSelect?.(i) }
   const [prof, setProf] = useState(() => Math.max(10, ...schema.elementi.map((e) => Math.max(e.y, e.y2 ?? 0) + 2)) > 12 ? 25 : 12)
   const svg = useRef<SVGSVGElement>(null)
   const trascina = useRef<{ i: number; dx: number; dy: number; linea?: boolean } | null>(null)
-  const v = calcolaVista(schema.elementi, { minX: -6, maxX: 6, minY: -5, maxY: prof })
+  const v = calcolaVista(schema.elementi, campo
+    ? { minX: -campo.larghezza / 2, maxX: campo.larghezza / 2, minY: -3, maxY: campo.profondita }
+    : { minX: -6, maxX: 6, minY: -5, maxY: prof }, campo ? 560 : 400)
+  const mappa: Mappatore = (x, y) => [px(v, x), py(v, y)]
   const el = schema.elementi
 
   const punto = (e: PE<SVGSVGElement>) => {
@@ -198,6 +216,8 @@ export function EditorSchema({ schema, onChange }: { schema: Schema; onChange: (
       nuovo.nota = '×2'
     }
     if (strumento === 'popper' || strumento === 'miniPopper') nuovo.id = `${strumento === 'popper' ? 'PP' : 'MP'}${el.filter((x) => x.t === strumento).length + 1}`
+    if (strumento === 'piastra') nuovo.id = `PL${el.filter((x) => x.t === 'piastra').length + 1}`
+    if (strumento === 'box') nuovo.id = `P${el.filter((x) => x.t === 'box').length + 1}`
     const i = el.length
     onChange({ elementi: [...el, nuovo] })
     setSel(i)
@@ -230,26 +250,31 @@ export function EditorSchema({ schema, onChange }: { schema: Schema; onChange: (
   return (
     <div className="form" style={{ gap: 10 }}>
       <div className="chips">
-        {STRUMENTI.map((x) => (
+        {STRUMENTI.filter((x) => !strumenti || strumenti.includes(x.t)).map((x) => (
           <button type="button" key={x.t} className={`chip-giorno${strumento === x.t ? ' attivo' : ''}`} style={{ padding: '0 10px', minHeight: 34 }} onClick={() => setStrumento(x.t)}>{x.label}</button>
         ))}
       </div>
       <p className="prose" style={{ margin: 0, fontSize: 12 }}>
         {strumento === 'sposta' ? 'Trascina un elemento per spostarlo, toccalo per modificarlo.' : LINEARI.includes(strumento as TipoElemento) ? 'Trascina sul disegno per tracciare.' : 'Tocca il disegno per aggiungere. I bersagli in alto, tu in basso.'}
       </p>
-      <Tela schema={schema} v={v} sel={sel} svgRef={svg} onPointerDown={down} onPointerMove={move} onPointerUp={up} etichetta="Editor del disegno del drill" />
-      <div className="row" style={{ fontSize: 13 }}>
-        <span className="label">Profondità</span>
-        {[12, 25].map((p) => <button type="button" key={p} className={`chip-giorno${prof === p ? ' attivo' : ''}`} style={{ minHeight: 30 }} onClick={() => setProf(p)}>{p} m</button>)}
-      </div>
+      <Tela schema={schema} v={v} sel={sel} svgRef={svg} onPointerDown={down} onPointerMove={move} onPointerUp={up} etichetta="Editor del disegno">{extra?.(mappa)}</Tela>
+      {!campo && (
+        <div className="row" style={{ fontSize: 13 }}>
+          <span className="label">Profondità</span>
+          {[12, 25].map((p) => <button type="button" key={p} className={`chip-giorno${prof === p ? ' attivo' : ''}`} style={{ minHeight: 30 }} onClick={() => setProf(p)}>{p} m</button>)}
+        </div>
+      )}
       {s && sel !== null && (
         <div className="card" style={{ background: 'var(--bg)', padding: 12 }}>
           <div className="fields-3">
-            {['carta', 'mini', 'popper', 'miniPopper', 'piastra', 'box'].includes(s.t) && (
+            {['carta', 'mini', 'popper', 'miniPopper', 'piastra', 'box', 'noshoot'].includes(s.t) && (
               <div className="field"><label htmlFor="se-id">Nome</label><input id="se-id" className="input" value={s.id ?? ''} onChange={(e) => aggiorna(sel, { id: e.target.value })} /></div>
             )}
             {['carta', 'mini', 'popper', 'miniPopper'].includes(s.t) && (
               <div className="field"><label htmlFor="se-nota">Colpi / nota</label><input id="se-nota" className="input" value={s.nota ?? ''} onChange={(e) => aggiorna(sel, { nota: e.target.value })} /></div>
+            )}
+            {!LINEARI.includes(s.t) && campo && (
+              <div className="field"><label htmlFor="se-x">Laterale (m)</label><input id="se-x" className="input" inputMode="decimal" value={String(s.x).replace('.', ',')} onChange={(e) => { const n = Number(e.target.value.replace(',', '.')); if (Number.isFinite(n)) aggiorna(sel, { x: n }) }} /></div>
             )}
             {!LINEARI.includes(s.t) && (
               <div className="field"><label htmlFor="se-y">Distanza (m)</label><input id="se-y" className="input" inputMode="decimal" value={String(s.y).replace('.', ',')} onChange={(e) => { const n = Number(e.target.value.replace(',', '.')); if (Number.isFinite(n)) aggiorna(sel, { y: n }) }} /></div>

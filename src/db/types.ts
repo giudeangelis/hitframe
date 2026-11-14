@@ -347,3 +347,16 @@ export interface Intervento {
   costo: number | null
   creato: string
 }
+
+/* ---------- Stage designer ---------- */
+export interface StageAllenamento {
+  id?: number
+  nome: string
+  larghezza: number // m
+  profondita: number // m
+  schema: import('../allenamento/schemi').Schema
+  partenza: string // condizione di partenza
+  note: string
+  creato: string
+  aggiornato: string
+}

@@ -8,6 +8,7 @@ import EventoForm from '../components/EventoForm'
 import EventoItem from '../components/EventoItem'
 import { Empty } from '../components/ui'
 import { db } from '../db/db'
+import { MARE_URL } from '../lib/mare'
 import { avvisiArma, colpiArma } from '../attrezzatura/calcoli'
 import { fabbisogno, scorta } from '../munizioni/calcoli'
 import { profiloGara } from '../analisi/motore'
@@ -136,7 +137,7 @@ export default function Home() {
 
       {iscrizioni.length > 0 && (
         <section className="card">
-          <div className="card-title"><span><BellRing size={18} style={{ verticalAlign: -3 }} /> Iscrizioni</span></div>
+          <div className="card-title"><span><BellRing size={18} style={{ verticalAlign: -3 }} /> Iscrizioni</span><a href={MARE_URL} target="_blank" rel="noreferrer">Apri MA.RE.</a></div>
           <div className="list">
             {iscrizioni.map((x) => (
               <button key={`${x.e.id}-${x.tipo}`} className="item" onClick={() => setEventoAperto(x.e)} style={x.tipo === 'scadenza' && x.giorni <= 3 ? { borderColor: 'var(--accent)' } : undefined}>

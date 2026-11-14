@@ -35,9 +35,10 @@ export const AREE: Area[] = [
     sezioni: [
       { path: '/allenamento', label: 'Drill', icon: Target },
       { path: '/sessioni', label: 'Sessioni', icon: ListChecks },
+      { path: '/stage-designer', label: 'Stage', icon: Crosshair },
       { path: '/timer', label: 'Timer', icon: Timer },
     ],
-    prefissi: ['/allenamento', '/sessioni', '/timer'],
+    prefissi: ['/allenamento', '/sessioni', '/stage-designer', '/timer'],
   },
   {
     id: 'gare', path: '/gare', label: 'Gare', icon: Trophy,
@@ -78,11 +79,5 @@ export function areaDi(pathname: string): Area | undefined {
   return AREE.find((a) => a.prefissi.some((p) => pathname === p || pathname.startsWith(p + '/')))
 }
 
-/** Moduli in sviluppo (pagina "in arrivo"). */
+/** Usato dalla pagina "in arrivo" per i moduli futuri. */
 export interface Modulo { path: string; label: string; descrizione: string; icon: LucideIcon; pronto: boolean; fase?: number; dettagli?: string[] }
-export const MODULI_FUTURI: Modulo[] = [
-  {
-    path: '/stage-designer', label: 'Stage Designer', descrizione: 'Progetta stage di allenamento', icon: Crosshair, pronto: false, fase: 4,
-    dettagli: ['Bersagli, piastre, ostacoli e fault line', 'Simulatore con tempo ideale dal tuo profilo', 'Export PDF'],
-  },
-]
