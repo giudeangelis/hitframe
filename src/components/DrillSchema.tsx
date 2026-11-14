@@ -29,18 +29,22 @@ function calcolaVista(el: ElementoSchema[], fissa?: { minX: number; maxX: number
 const px = (v: Vista, x: number) => (x - v.minX) * v.sx
 const py = (v: Vista, y: number) => v.H - (y - v.minY) * v.sy
 
-/** Sagoma IPSC vista di fronte, centrata in (cx, cy), alta h. */
-function Sagoma({ cx, cy, h, fill, stroke, testa = true }: { cx: number; cy: number; h: number; fill: string; stroke: string; testa?: boolean }) {
-  const w = h * 0.6
-  const b = h * 0.75 // corpo
-  const top = cy - h / 2 + (h - b)
-  const c = w * 0.22
-  const corpo = `M${cx - w / 2 + c},${top} L${cx + w / 2 - c},${top} L${cx + w / 2},${top + c} L${cx + w / 2},${top + b - c} L${cx + w / 2 - c},${top + b} L${cx - w / 2 + c},${top + b} L${cx - w / 2},${top + b - c} L${cx - w / 2},${top + c} Z`
-  const hw = w * 0.32, hh = h - b
+/** Bersaglio IPSC ottagonale (46 × 58 cm) visto di fronte, con zone A, C e D accennate. */
+function Sagoma({ cx, cy, h, fill, stroke, zone = true }: { cx: number; cy: number; h: number; fill: string; stroke: string; zone?: boolean }) {
+  const ottagono = (w: number, hh: number, tx: number, ty: number) => {
+    const l = cx - w / 2, r = cx + w / 2, t = cy - hh / 2, b = cy + hh / 2
+    return `M${l + tx},${t} L${r - tx},${t} L${r},${t + ty} L${r},${b - ty} L${r - tx},${b} L${l + tx},${b} L${l},${b - ty} L${l},${t + ty} Z`
+  }
+  const w = h * 0.79
   return (
     <g>
-      <path d={corpo} fill={fill} stroke={stroke} strokeWidth={1} />
-      {testa && <rect x={cx - hw / 2} y={top - hh} width={hw} height={hh} fill={fill} stroke={stroke} strokeWidth={1} />}
+      <path d={ottagono(w, h, w * 0.27, h * 0.24)} fill={fill} stroke={stroke} strokeWidth={1} />
+      {zone && h >= 14 && (
+        <>
+          <path d={ottagono(w * 0.66, h * 0.8, w * 0.17, h * 0.17)} fill="none" stroke={stroke} strokeWidth={0.6} opacity={0.55} />
+          <rect x={cx - w * 0.15} y={cy - h * 0.3} width={w * 0.3} height={h * 0.56} rx={w * 0.12} fill="none" stroke={stroke} strokeWidth={0.6} opacity={0.7} />
+        </>
+      )}
     </g>
   )
 }
@@ -60,7 +64,7 @@ function Elemento({ e, v, sel }: { e: ElementoSchema; v: Vista; sel: boolean }) 
     case 'mini':
       return <g style={evid}><Sagoma cx={x} cy={y} h={e.t === 'mini' ? s * 0.75 : s} fill={COL.carta} stroke={COL.cartaBordo} />{etichetta(s * 0.5 + 11)}</g>
     case 'noshoot':
-      return <g style={evid}><Sagoma cx={x} cy={y} h={s} fill={COL.ns} stroke="#999" /><text x={x} y={y + 3} textAnchor="middle" fontSize={8} fontWeight={800} fill="#c33">NS</text></g>
+      return <g style={evid}><Sagoma cx={x} cy={y} h={s} fill={COL.ns} stroke="#999" zone={false} /><text x={x} y={y + 3} textAnchor="middle" fontSize={8} fontWeight={800} fill="#c33">NS</text></g>
     case 'popper':
     case 'miniPopper': {
       const r = e.t === 'popper' ? s * 0.32 : s * 0.24

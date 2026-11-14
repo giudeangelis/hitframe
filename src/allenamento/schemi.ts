@@ -13,7 +13,7 @@ export interface ElementoSchema {
   y2?: number
   /** etichetta: T1, P1… */
   id?: string
-  /** nota breve sul bersaglio, es. "×2", "testa", "1° e 4°" */
+  /** nota breve sul bersaglio, es. "×2", "1° e 4°" */
   nota?: string
   /** tiratore: verso dove guarda all'inizio */
   verso?: 'avanti' | 'indietro'
@@ -91,12 +91,6 @@ export const ISTRUZIONI: Record<string, Istruzioni> = {
     passi: ['Mani in resa, arma in fondina.', 'Al beep due colpi su T1 e due su T2.', 'Conta solo le A: un no-shoot o un mancato annulla la prova.'],
     attenzione: ['Mira sulla parte libera della zona A, lontano dal bordo del no-shoot.', 'Rallenta quanto basta: qui la penalità costa più del tempo.'],
     schema: { elementi: [tiratore(), T(-1.2, 10, 'T1'), { t: 'noshoot', x: -0.85, y: 9.8 }, T(1.2, 10, 'T2'), { t: 'noshoot', x: 0.85, y: 9.8 }] },
-  },
-  teste: {
-    allestimento: 'Due bersagli IPSC a 7 m: si spara solo sulla testa.',
-    passi: ['Mani in resa, arma in fondina.', 'Al beep due colpi nella testa di T1 e due nella testa di T2.', 'Valida solo con tutti i colpi nella zona A della testa.'],
-    attenzione: ['Scatto pulito: il colpo parte con il punto fermo nella testa.', 'Mantieni la stessa presa del tiro veloce: cambia solo la rifinitura.'],
-    schema: { elementi: [tiratore(), T(-0.75, 7, 'T1', 'testa ×2'), T(0.75, 7, 'T2', 'testa ×2')] },
   },
   ingresso: {
     allestimento: 'Un box (o due fault line) a 7 m da due bersagli IPSC. Partenza 4 m dietro il box.',

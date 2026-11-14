@@ -287,7 +287,7 @@ export function indicazioni(a: Analisi): Indicazione[] {
       out.push({
         titolo: 'Precisione sulle zone A',
         perche: `A al ${Math.round(mio.aPct * 100)}% contro il ${Math.round(top10.aPct * 100)}% dei primi 10: tra C e D hai lasciato ${persiCD} punti.`,
-        drill: ['doppiette', 'parziali', 'teste', 'b-transizioni'], peso: gapA * 100 + persiCD / 10,
+        drill: ['doppiette', 'parziali', 'accelerator', 'b-transizioni'], peso: gapA * 100 + persiCD / 10,
       })
     }
   }
@@ -296,7 +296,7 @@ export function indicazioni(a: Analisi): Indicazione[] {
     out.push({
       titolo: 'Zero mancati e no-shoot',
       perche: `${tot.MI} mancat${tot.MI === 1 ? 'o' : 'i'}${tot.NS ? ` e ${tot.NS} no-shoot` : ''}: senza, avresti preso ${g.toFixed(1).replace('.', ',')} punti gara in più.`,
-      drill: ['parziali', 'teste', 'carta-metallo'], peso: g,
+      drill: ['parziali', 'carta-metallo', 'piastre'], peso: g,
     })
   }
   if (tot.PE > 0) {

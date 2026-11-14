@@ -108,12 +108,6 @@ export const DRILLS: Drill[] = [
     obiettivi: o(2.2, 2.6, 3.0, 3.6, 4.3), focus: ['noshoot'],
   },
   {
-    id: 'teste', nome: 'Teste a 7 m', categoria: 'Precisione', modalita: 'fuoco',
-    descrizione: 'Due colpi nella testa di due bersagli. Allena la precisione sotto il timer.',
-    distanza: '7 m', bersagli: '2 IPSC (solo testa)', colpi: 4, partenza: 'Mani in resa, arma in fondina',
-    obiettivi: o(2.4, 2.8, 3.3, 3.9, 4.6), focus: ['noshoot'],
-  },
-  {
     id: 'ingresso', nome: 'Ingresso in posizione', categoria: 'Movimento', modalita: 'fuoco',
     descrizione: 'Partenza 4 m fuori dal box. Entra e ingaggia due bersagli, due colpi ciascuno, appena i piedi sono dentro.',
     distanza: '7 m dal box', bersagli: '2 IPSC', colpi: 4, partenza: 'Fuori dal box, mani in resa',
