@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowLeft, CalendarCheck, Dumbbell, Plus, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Shuffle, CalendarCheck, Dumbbell, Plus, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { DRILLS } from '../allenamento/drills'
@@ -12,6 +12,7 @@ import { leggiDateGara } from '../analisi/date'
 import { metalli } from '../analisi/motore'
 import type { StageLetto } from '../analisi/tipi'
 import DiarioCollegato from '../components/DiarioCollegato'
+import { descriviCampo, punteggioReale } from '../risultati/reale'
 import { inAltreDivisioni, analizza, avversariVicini, colpiStage, confronto, indicazioni, nomeLeggibile, trovaPerNome, type Analisi, type RisultatoGara } from '../risultati/motore'
 import { getImp, setImp } from '../db/db'
 import { Star } from 'lucide-react'
@@ -89,6 +90,7 @@ export default function RisultatoDettaglio() {
       <Segmented<Vista> label="Sezione" value={vista} onChange={setVista}
         options={[{ value: 'riepilogo', label: 'Riepilogo' }, { value: 'stage', label: 'Stage' }, { value: 'avversari', label: 'Avversari' }, { value: 'allenamento', label: 'Allena' }]} />
 
+      {vista === 'riepilogo' && <PunteggioReale r={r} pct={a.base.pct} />}
       {vista === 'riepilogo' && <Riepilogo a={a} r={r} />}
       {vista === 'riepilogo' && <AltreDivisioni r={r} />}
       {vista === 'riepilogo' && (
@@ -109,11 +111,47 @@ export default function RisultatoDettaglio() {
   )
 }
 
+function PunteggioReale({ r, pct }: { r: RisultatoGara; pct: number }) {
+  const x = useMemo(() => punteggioReale(r), [r])
+  if (!x) return null
+  const diff = x.indice - pct
+  return (
+    <section className="card">
+      <div className="card-title"><span>Punteggio reale</span><span className="badge" style={{ fontSize: 15, color: 'var(--accent)' }}>{f1(x.indice)}</span></div>
+      <p className="prose" style={{ margin: 0 }}>
+        {descriviCampo(x)}. Il vincitore ha fatto {Math.round(x.forza)} sulla stessa scala.
+        {Math.abs(diff) >= 3 && (diff < 0
+          ? <> Il tuo {f1(pct)}% è “gonfiato” da un campo {x.livello === 'basso' || x.livello === 'medio' ? 'non fortissimo' : 'favorevole'}: in termini assoluti la gara vale {f1(x.indice)}.</>
+          : <> Il tuo {f1(pct)}% sottostima la gara: davanti c’erano tiratori molto forti, in termini assoluti vale {f1(x.indice)}.</>)}
+      </p>
+      {(x.precisione !== null || x.velocita !== null) && (
+        <div className="stats" style={{ marginTop: 10 }}>
+          <div className="stat"><div className="v">{f1(x.indice)}</div><div className="l">Reale</div></div>
+          {x.precisione !== null && <div className="stat"><div className="v">{f1(x.precisione)}</div><div className="l">Precisione</div></div>}
+          {x.velocita !== null && <div className="stat"><div className="v">{f1(x.velocita)}</div><div className="l">Velocità</div></div>}
+        </div>
+      )}
+      <p className="prose" style={{ fontSize: 12, margin: '8px 0 0' }}>
+        100 = un Grand Master in forma sugli stessi stage, stimato da tutti i tiratori presenti e dalla loro classe. Non dipende da chi ha vinto:
+        si confrontano gare diverse in modo onesto.{!x.affidabile && ' Pochi tiratori con classe nota: stima indicativa.'}
+      </p>
+    </section>
+  )
+}
+
 function AltreDivisioni({ r }: { r: RisultatoGara }) {
+  const [aperto, setAperto] = useState(false)
+  if (!aperto) {
+    return (
+      <button className="btn ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setAperto(true)}>
+        <Shuffle size={16} /> E se fossi in un’altra divisione?
+      </button>
+    )
+  }
   const lista = inAltreDivisioni(r)
   return (
     <section className="card">
-      <div className="card-title">E se fossi in un’altra divisione?</div>
+      <div className="card-title"><span>E se fossi in un’altra divisione?</span><button className="btn ghost" style={{ minHeight: 32, padding: '0 8px' }} onClick={() => setAperto(false)}>Chiudi</button></div>
       {!r.altre ? (
         <p className="prose" style={{ margin: 0, fontSize: 13 }}>Ricarica i PDF dei risultati di questa gara: ora salvo anche le altre divisioni per questo confronto.</p>
       ) : lista.length === 0 ? (
@@ -220,6 +258,7 @@ function Stage({ a, r, libretto }: { a: Analisi; r: RisultatoGara; libretto: Lib
   const [ordine, setOrdine] = useState<'numero' | 'costo'>('costo')
   const [verifica, setVerifica] = useState(false)
   const ab = libretto && r.abbinamento?.analisiId === libretto.id ? r.abbinamento : null
+  const reale = useMemo(() => punteggioReale(r), [r])
   const lista = [...a.stages].sort((x, y) => (ordine === 'numero' ? x.n - y.n : (y.guadagnoErrori + y.guadagnoPrecisione) - (x.guadagnoErrori + x.guadagnoPrecisione) || x.s.pct - y.s.pct))
   return (
     <section className="card">
@@ -251,6 +290,17 @@ function Stage({ a, r, libretto }: { a: Analisi; r: RisultatoGara; libretto: Lib
               <div className="meta" style={{ marginTop: 2 }}>
                 {s.pos}° su {x.totale} · HF {f2(s.hf)} (primo {f2(x.hfMax)}) · {f2(s.tempo)} s (il vincitore {f2(x.tempoVincitore)} s)
               </div>
+              {(() => {
+                const sr = reale?.stages.find((z) => z.n === x.n)
+                if (!sr) return null
+                return (
+                  <div className="meta" style={{ marginTop: 2 }}>
+                    Reale <b style={{ color: 'var(--text)' }}>{f1(sr.indice)}</b>
+                    {sr.precisione !== null ? ` · precisione ${f1(sr.precisione)}` : ''}{sr.velocita !== null ? ` · velocità ${f1(sr.velocita)}` : ''}
+                    {` · vincitore ${Math.round(sr.vincitore)}`}
+                  </div>
+                )
+              })()}
               {(() => {
                 const bn = ab?.mappa[x.n]
                 const st = bn ? libretto?.stages.find((z) => z.numero === bn) : undefined

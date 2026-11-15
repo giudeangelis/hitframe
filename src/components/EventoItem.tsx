@@ -5,6 +5,7 @@ import { fmt, quando } from '../lib/date'
 export function eventoMeta(e: Evento): string {
   const parti: string[] = []
   if (e.tipo === 'gara' && e.dataFine !== e.data) parti.push(`fino al ${fmt(e.dataFine, 'd MMM')}`)
+  if (e.tipo === 'gara' && e.gara?.iscritto && e.gara.turno) parti.push(e.gara.turno)
   if (e.ora) parti.push(e.ora)
   if (e.luogo) parti.push(e.luogo)
   if (e.tipo === 'gara' && e.gara?.livello) parti.push(e.gara.livello)

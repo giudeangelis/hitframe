@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { db, nowIso } from '../db/db'
-import { LIVELLI_GARA, TIPI_EVENTO, type Evento, type TipoEvento } from '../db/types'
+import { LIVELLI_GARA, TIPI_EVENTO, type DettagliGara, type Evento, type TipoEvento } from '../db/types'
 import { linkMaps } from '../lib/maps'
 import { dopoSalvataggio, primaDiEliminare } from '../google/calendar'
 import { MapPin } from 'lucide-react'
@@ -8,7 +8,8 @@ import { Link } from 'react-router-dom'
 import { tuttiDrill } from '../allenamento/servizi'
 import { linkIscrizione } from '../lib/mare'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { oggiKey } from '../lib/date'
+import { capitalize, fmt, oggiKey, toKey, fromKey } from '../lib/date'
+import { addDays } from 'date-fns'
 import { numOrNull, Segmented, Sheet, useToast } from './ui'
 
 const TITOLI_DEFAULT: Record<TipoEvento, string> = {
@@ -16,6 +17,12 @@ const TITOLI_DEFAULT: Record<TipoEvento, string> = {
   bianco: 'Allenamento in bianco',
   gara: '',
   altro: '',
+}
+
+function giorniTra(da: string, a: string): string[] {
+  const out: string[] = []
+  for (let d = fromKey(da); toKey(d) <= a && out.length < 10; d = addDays(d, 1)) out.push(toKey(d))
+  return out
 }
 
 function nuovoEvento(data: string, tipo: TipoEvento): Evento {
@@ -35,7 +42,7 @@ function nuovoEvento(data: string, tipo: TipoEvento): Evento {
   }
 }
 
-const garaVuota = () => ({
+const garaVuota = (): DettagliGara => ({
   aperturaIscrizione: '',
   livello: 'Level II',
   organizzatore: '',
@@ -50,13 +57,18 @@ export default function EventoForm({
   evento, data, tipo = 'fuoco', onClose, onSalvato,
 }: { evento?: Evento; data?: string; tipo?: TipoEvento; onClose: () => void; onSalvato?: (id: number) => void }) {
   const toast = useToast()
-  const [e, setE] = useState<Evento>(() => evento ?? nuovoEvento(data ?? oggiKey(), tipo))
+  // se la gara era ridotta al tuo giorno, nel modulo si rivedono le date complete
+  const [e, setE] = useState<Evento>(() => {
+    const base = evento ?? nuovoEvento(data ?? oggiKey(), tipo)
+    const per = base.gara?.periodo
+    return per ? { ...base, data: per.inizio, dataFine: per.fine } : base
+  })
   const [confermaElimina, setConfermaElimina] = useState(false)
   const personali = useLiveQuery(() => db.drillPersonali.toArray()) ?? []
   const armi = useLiveQuery(() => db.armi.toArray()) ?? []
   const set = <K extends keyof Evento>(k: K, v: Evento[K]) => setE((p) => ({ ...p, [k]: v }))
-  const gara = e.gara ?? garaVuota()
-  const setGara = <K extends keyof typeof gara>(k: K, v: (typeof gara)[K]) => setE((p) => ({ ...p, gara: { ...(p.gara ?? garaVuota()), [k]: v } }))
+  const gara: DettagliGara = e.gara ?? garaVuota()
+  const setGara = <K extends keyof DettagliGara>(k: K, v: DettagliGara[K]) => setE((p) => ({ ...p, gara: { ...(p.gara ?? garaVuota()), [k]: v } }))
 
   const cambiaTipo = (t: TipoEvento) => {
     setE((p) => ({
@@ -74,11 +86,17 @@ export default function EventoForm({
   async function salva(ev: React.FormEvent) {
     ev.preventDefault()
     if (!valido) return
-    const pulito: Evento = {
+    const fine = e.tipo === 'gara' && e.dataFine >= e.data ? e.dataFine : e.data
+    let pulito: Evento = {
       ...e,
       titolo: e.titolo.trim(),
-      dataFine: e.tipo === 'gara' && e.dataFine >= e.data ? e.dataFine : e.data,
-      gara: e.tipo === 'gara' ? gara : undefined,
+      dataFine: fine,
+      gara: e.tipo === 'gara' ? { ...gara, periodo: undefined, turno: gara.turno?.trim() || undefined } : undefined,
+    }
+    // iscritto a una gara su più giorni: in calendario resta solo il tuo giorno
+    const giorno = gara.giornoGara
+    if (e.tipo === 'gara' && gara.iscritto && fine !== e.data && giorno && giorno >= e.data && giorno <= fine) {
+      pulito = { ...pulito, data: giorno, dataFine: giorno, gara: { ...pulito.gara!, periodo: { inizio: e.data, fine } } }
     }
     const id = (pulito.id ? await db.eventi.put(pulito) : await db.eventi.add(pulito)) as number
     onSalvato?.(id)
@@ -187,6 +205,26 @@ export default function EventoForm({
               <input type="checkbox" checked={gara.iscritto} onChange={(x) => setGara('iscritto', x.target.checked)} />
               Iscritto
             </label>
+            {gara.iscritto && (
+              <div className="fields-2">
+                {e.dataFine > e.data && (
+                  <div className="field">
+                    <label htmlFor="ev-giorno">Il tuo giorno</label>
+                    <select id="ev-giorno" className="input" value={gara.giornoGara ?? ''} onChange={(x) => setGara('giornoGara', x.target.value || undefined)}>
+                      <option value="">Tutti i giorni</option>
+                      {giorniTra(e.data, e.dataFine).map((g) => <option key={g} value={g}>{capitalize(fmt(g, 'EEEE d MMMM'))}</option>)}
+                    </select>
+                  </div>
+                )}
+                <div className="field">
+                  <label htmlFor="ev-turno">Turno o squadra</label>
+                  <input id="ev-turno" className="input" value={gara.turno ?? ''} onChange={(x) => setGara('turno', x.target.value)} placeholder="Es. Squadra 4, mattina" />
+                </div>
+              </div>
+            )}
+            {gara.iscritto && e.dataFine > e.data && gara.giornoGara && (
+              <span className="hint" style={{ marginTop: -8 }}>In calendario resta solo il tuo giorno; le date complete restano salvate nella gara.</span>
+            )}
             {(gara.aperturaIscrizione || gara.scadenzaIscrizione) && !gara.iscritto && (
               <span className="hint" style={{ marginTop: -8 }}>Promemoria in Home e, se collegato, su Google Calendar con notifica.</span>
             )}

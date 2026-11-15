@@ -111,7 +111,8 @@ function descrizione(e: Evento): string {
     const info = [g.livello, g.numeroStage ? `${g.numeroStage} stage` : '', g.colpiTotali ? `${g.colpiTotali} colpi` : ''].filter(Boolean).join(' · ')
     if (info) righe.push(info)
     if (g.iscrizioneUrl) righe.push(`Iscrizione: ${g.iscrizioneUrl}`)
-    righe.push(g.iscritto ? 'Iscritto ✓' : 'Non ancora iscritto')
+    righe.push(g.iscritto ? `Iscritto ✓${g.turno ? ` · ${g.turno}` : ''}` : 'Non ancora iscritto')
+    if (g.periodo) righe.push(`Gara dal ${g.periodo.inizio} al ${g.periodo.fine}`)
   }
   if (e.tipo === 'fuoco' && e.colpiPianificati) righe.push(`Colpi pianificati: ${e.colpiPianificati}`)
   righe.push('', 'Da Hitframe')
@@ -120,7 +121,8 @@ function descrizione(e: Evento): string {
 
 function risorsaEvento(e: Evento) {
   const base = {
-    summary: e.tipo === 'gara' || /allenamento|bianco|fuoco/i.test(e.titolo) ? e.titolo : `${TIPI_EVENTO[e.tipo].breve} · ${e.titolo}`,
+    summary: (e.tipo === 'gara' || /allenamento|bianco|fuoco/i.test(e.titolo) ? e.titolo : `${TIPI_EVENTO[e.tipo].breve} · ${e.titolo}`)
+      + (e.tipo === 'gara' && e.gara?.iscritto && e.gara.turno ? ` · ${e.gara.turno}` : ''),
     location: e.luogo || undefined,
     description: descrizione(e),
     colorId: COLORI[e.tipo],

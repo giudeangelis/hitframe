@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { BarChart3, Medal, ThumbsDown, ThumbsUp } from 'lucide-react'
-import { useMemo } from 'react'
+import { BarChart3, Medal, Shuffle, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { DOMANDE } from '../abilita/questionario'
 import { fmt2, tuttiDrill } from '../allenamento/servizi'
@@ -23,15 +23,17 @@ export default function Statistiche() {
   const rivali = useLiveQuery(() => getImp<string[]>('rivali', [])) ?? []
   const diario = useLiveQuery(() => db.diario.toArray()) ?? []
 
+  const [vediAltre, setVediAltre] = useState(false)
   const punti = useMemo(() => (risultati && analisi ? puntiGara(risultati, analisi) : []), [risultati, analisi])
   const giudizi = useMemo(() => puntiForzaDebolezza(punti), [punti])
 
   if (!risultati || !analisi || !profilo) return <div className="page" />
 
   const et = punti.map((p) => fmt(p.data, 'd MMM'))
-  const trend = pendenza(punti.map((p) => p.pct))
-  const media = punti.length ? punti.reduce((a, p) => a + p.pct, 0) / punti.length : 0
-  const migliore = punti.length ? punti.reduce((a, p) => (p.pct > a.pct ? p : a)) : null
+  const trend = pendenza(punti.map((p) => p.reale))
+  const media = punti.length ? punti.reduce((a, p) => a + p.reale, 0) / punti.length : 0
+  const migliore = punti.length ? punti.reduce((a, p) => (p.reale > a.reale ? p : a)) : null
+  const conPV = punti.some((p) => p.realePrecisione !== null)
 
   // Tipi di stage su tutte le gare
   const corsi: Corso[] = ['Short', 'Medium', 'Long']
@@ -79,8 +81,8 @@ export default function Statistiche() {
     const conc = testa.map((x) => x.d!.conc!).sort((a, b) => a - b)
     const med = conc[Math.floor(conc.length / 2)]
     const alto = testa.filter((x) => x.d!.conc! > med), basso = testa.filter((x) => x.d!.conc! <= med)
-    const mm = (xx: typeof testa) => xx.reduce((a, x) => a + x.p.pct, 0) / Math.max(1, xx.length)
-    if (alto.length && basso.length) confrontoTesta = `Con concentrazione sopra ${med}/5 fai in media il ${f1(mm(alto))}%, sotto il ${f1(mm(basso))}%.`
+    const mm = (xx: typeof testa) => xx.reduce((a, x) => a + x.p.reale, 0) / Math.max(1, xx.length)
+    if (alto.length && basso.length) confrontoTesta = `Con concentrazione sopra ${med}/5 il tuo punteggio reale medio è ${f1(mm(alto))}, sotto è ${f1(mm(basso))}.`
   }
 
   // Abilità
@@ -101,8 +103,8 @@ export default function Statistiche() {
         <>
           <div className="stats zone">
             <div className="stat"><div className="v">{punti.length}</div><div className="l">Gare analizzate</div></div>
-            <div className="stat"><div className="v">{f1(media)}%</div><div className="l">Media in divisione</div></div>
-            <div className="stat"><div className="v" style={{ color: trend > 0.3 ? 'var(--ok)' : trend < -0.3 ? 'var(--fuoco)' : undefined }}>{trend >= 0 ? '+' : ''}{f1(trend)}</div><div className="l">Punti % per gara (tendenza)</div></div>
+            <div className="stat"><div className="v">{f1(media)}</div><div className="l">Punteggio reale medio</div></div>
+            <div className="stat"><div className="v" style={{ color: trend > 0.3 ? 'var(--ok)' : trend < -0.3 ? 'var(--fuoco)' : undefined }}>{trend >= 0 ? '+' : ''}{f1(trend)}</div><div className="l">Punti reali per gara (tendenza)</div></div>
           </div>
 
           {giudizi.length > 0 && (
@@ -120,21 +122,40 @@ export default function Statistiche() {
           )}
 
           <section className="card">
-            <div className="card-title">Percentuale in divisione</div>
-            <GraficoLinee titolo="Percentuale in divisione gara per gara" etichette={et} formato={(n) => `${f1(n)}%`}
-              serie={[{ nome: 'Tu', valori: punti.map((p) => p.pct), colore: 'var(--accent)' }]} />
+            <div className="card-title">Punteggio reale</div>
+            <GraficoLinee titolo="Punteggio reale gara per gara, con la percentuale in classifica" etichette={et} formato={(n) => f1(n)}
+              serie={[
+                { nome: 'Reale', valori: punti.map((p) => p.reale), colore: 'var(--accent)' },
+                { nome: '% classifica', valori: punti.map((p) => p.pct), colore: 'var(--muted)', tratteggio: true },
+              ]} />
+            <p className="prose" style={{ fontSize: 12, margin: '6px 0 0' }}>
+              Il punteggio reale misura la tua gara rispetto a un Grand Master in forma sugli stessi stage, stimato da tutti i tiratori presenti e dalla loro classe:
+              non dipende da chi ha vinto. Il tratteggio è la percentuale in classifica, che invece cambia con il livello del campo.
+            </p>
             <div className="list" style={{ marginTop: 10 }}>
               {[...punti].reverse().map((p) => (
                 <Link key={p.id} to={`/risultati/${p.id}`} className="item" style={{ padding: '8px 12px' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="title" style={{ fontSize: 14 }}>{p.gara}</div>
-                    <div className="meta">{fmt(p.data, 'd MMM yyyy')} · {p.pos}° su {p.tot} · {p.posClasse}° in classe su {p.totClasse}</div>
+                    <div className="meta">{fmt(p.data, 'd MMM yyyy')} · {p.pos}° su {p.tot} ({f1(p.pct)}%) · campo {p.livelloCampo}</div>
                   </div>
-                  <b style={{ color: p === migliore ? 'var(--accent)' : undefined }}>{f1(p.pct)}%</b>
+                  <b style={{ color: p === migliore ? 'var(--accent)' : undefined }}>{f1(p.reale)}</b>
                 </Link>
               ))}
             </div>
           </section>
+
+          {conPV && (
+            <section className="card">
+              <div className="card-title">Precisione e velocità reali</div>
+              <GraficoLinee titolo="Precisione e velocità rispetto a un Grand Master in forma" etichette={et} formato={(n) => f1(n)}
+                serie={[
+                  { nome: 'Precisione', valori: punti.map((p) => p.realePrecisione), colore: 'var(--accent)' },
+                  { nome: 'Velocità', valori: punti.map((p) => p.realeVelocita), colore: 'var(--fuoco)' },
+                ]} />
+              <p className="prose" style={{ fontSize: 12, margin: '6px 0 0' }}>100 = come un Grand Master in forma. Precisione × velocità = punteggio reale.</p>
+            </section>
+          )}
 
           <section className="card">
             <div className="card-title">Colpi in A</div>
@@ -175,17 +196,20 @@ export default function Statistiche() {
                   <div key={x.c} style={{ display: 'grid', gridTemplateColumns: '64px 1fr 56px', gap: 10, alignItems: 'center', fontSize: 14 }}>
                     <span className="label">{x.c}</span>
                     <div className="progresso" style={{ marginTop: 0, height: 10 }}><span style={{ width: `${x.pct}%`, background: 'var(--accent)' }} /></div>
-                    <b style={{ textAlign: 'right' }}>{f1(x.pct)}%</b>
+                    <b style={{ textAlign: 'right' }}>{f1(x.pct)}</b>
                   </div>
                 ))}
               </div>
-              <p className="prose" style={{ fontSize: 12, margin: '8px 0 0' }}>Media degli stage su {perCorso.reduce((a, x) => a + x.k, 0)} stage. Il tipo viene dal libretto quando è caricato, altrimenti dai colpi.</p>
+              <p className="prose" style={{ fontSize: 12, margin: '8px 0 0' }}>Punteggio reale medio su {perCorso.reduce((a, x) => a + x.k, 0)} stage. Il tipo viene dal libretto quando è caricato, altrimenti dai colpi.</p>
             </section>
           )}
 
-          {altreLista.length > 0 && (
+          {altreLista.length > 0 && !vediAltre && (
+            <button className="btn ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setVediAltre(true)}><Shuffle size={16} /> E se fossi in un’altra divisione?</button>
+          )}
+          {altreLista.length > 0 && vediAltre && (
             <section className="card">
-              <div className="card-title">In un’altra divisione</div>
+              <div className="card-title"><span>In un’altra divisione</span><button className="btn ghost" style={{ minHeight: 32, padding: '0 8px' }} onClick={() => setVediAltre(false)}>Chiudi</button></div>
               <div className="list">
                 {altreLista.map((x) => (
                   <div key={x.d} className="item" style={{ padding: '8px 12px' }}>
@@ -211,7 +235,7 @@ export default function Statistiche() {
                         <div className="title" style={{ fontSize: 14 }}>{p.breve}</div>
                         <div className="meta">concentrazione {d!.conc ? f1(d!.conc) : '—'} · umore {d!.umore ? f1(d!.umore) : '—'}{d!.sonno ? ` · ${f1(d!.sonno)} h di sonno` : ''}</div>
                       </div>
-                      <b>{f1(p.pct)}%</b>
+                      <b>{f1(p.reale)}</b>
                     </Link>
                   ))}
                 </div>

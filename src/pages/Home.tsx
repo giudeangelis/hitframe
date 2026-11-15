@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom'
 import DiarioForm from '../components/DiarioForm'
 import EventoForm from '../components/EventoForm'
 import EventoItem from '../components/EventoItem'
-import { Empty } from '../components/ui'
+import { Empty, Sheet } from '../components/ui'
 import { db } from '../db/db'
 import { MARE_URL } from '../lib/mare'
 import { avvisiArma, colpiArma } from '../attrezzatura/calcoli'
@@ -66,6 +66,7 @@ export default function Home() {
           <h1>{nome ? `Ciao ${nome}` : 'Benvenuto'}</h1>
           <div className="sub">{capitalize(fmtLungo(oggi))}</div>
         </div>
+        <AvvisiMateriale />
       </header>
 
       {!profilo && (
@@ -119,8 +120,6 @@ export default function Home() {
           </>
         )}
       </section>
-
-      <AvvisiMateriale />
 
       <div className="stats zone" aria-label="Questo mese" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
         <div className="stat"><div className="v" style={{ color: 'var(--fuoco)' }}>{fuoco}</div><div className="l">A fuoco questo mese</div></div>
@@ -225,15 +224,26 @@ function AvvisiMateriale() {
     if (basso.length) out.push({ testo: `Da riordinare: ${basso.map((c) => c.nome).join(', ')}`, to: '/munizioni?vista=magazzino', tipo: 'munizioni' })
     return out
   }, [oggi]) ?? []
+  const [aperto, setAperto] = useState(false)
   if (!dati.length) return null
   return (
-    <section className="card avviso" style={{ flexDirection: 'column', gap: 6 }}>
-      <div className="row" style={{ color: 'var(--text)', fontWeight: 700 }}><AlertTriangle size={18} color="var(--accent)" /> Materiale</div>
-      {dati.map((d) => (
-        <Link key={d.testo} to={d.to} className="row" style={{ color: 'var(--text)', fontSize: 14 }}>
-          {d.tipo === 'arma' ? <Wrench size={16} color="var(--muted)" /> : <Package size={16} color="var(--muted)" />} {d.testo}
-        </Link>
-      ))}
-    </section>
+    <>
+      <button className="btn icon ghost avviso-triangolo" aria-label={`Attenzione: ${dati.length} avvisi sul materiale`} title="Materiale" onClick={() => setAperto(true)}>
+        <AlertTriangle size={24} />
+        {dati.length > 1 && <span className="avviso-numero">{dati.length}</span>}
+      </button>
+      {aperto && (
+        <Sheet title="Materiale" onClose={() => setAperto(false)}>
+          <div className="list">
+            {dati.map((d) => (
+              <Link key={d.testo} to={d.to} className="item">
+                {d.tipo === 'arma' ? <Wrench size={18} color="var(--accent)" /> : <Package size={18} color="var(--accent)" />}
+                <div className="title" style={{ fontSize: 14, flex: 1 }}>{d.testo}</div>
+              </Link>
+            ))}
+          </div>
+        </Sheet>
+      )}
+    </>
   )
 }

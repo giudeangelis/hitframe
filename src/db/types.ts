@@ -122,6 +122,12 @@ export interface DettagliGara {
   iscrizioneUrl: string
   scadenzaIscrizione: string // YYYY-MM-DD o ''
   iscritto: boolean
+  /** Giorno in cui spari (gare su più giorni): una volta iscritto, in calendario resta solo questo. */
+  giornoGara?: string
+  /** Turno o squadra, es. "Squadra 4 · sabato mattina". */
+  turno?: string
+  /** Date complete della gara, conservate quando l'evento è ridotto al tuo giorno. */
+  periodo?: { inizio: string; fine: string }
   numeroStage: number | null
   colpiTotali: number | null
 }

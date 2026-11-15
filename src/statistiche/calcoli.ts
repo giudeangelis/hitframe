@@ -1,6 +1,7 @@
 import type { AnalisiGara } from '../db/types'
 import { leggiDateGara } from '../analisi/date'
 import { analizza, type RisultatoGara } from '../risultati/motore'
+import { punteggioReale } from '../risultati/reale'
 
 export type Corso = 'Short' | 'Medium' | 'Long'
 
@@ -10,6 +11,11 @@ export interface PuntoGara {
   breve: string
   data: string
   pct: number
+  reale: number // punteggio reale (100 = GM in forma), indipendente da chi c'era
+  realePrecisione: number | null
+  realeVelocita: number | null
+  forzaCampo: number // vincitore sulla stessa scala
+  livelloCampo: string
   pos: number
   tot: number
   posClasse: number
@@ -48,18 +54,21 @@ export function tipiDaLibretto(r: RisultatoGara, analisi: AnalisiGara[]): Record
 export function puntiGara(risultati: RisultatoGara[], analisi: AnalisiGara[]): PuntoGara[] {
   return [...risultati].sort((a, b) => a.data.localeCompare(b.data)).map((r) => {
     const a = analizza(r, tipiDaLibretto(r, analisi))
+    const re = punteggioReale(r)
     const top10 = r.concorrenti.slice(0, 10)
     let mi10 = 0, h10 = 0
     for (const c of top10) for (const s of Object.values(c.stages)) { mi10 += s.MI ?? 0; h10 += (s.A ?? 0) + (s.C ?? 0) + (s.D ?? 0) + (s.MI ?? 0) }
     const perCorso: PuntoGara['perCorso'] = {}
     for (const s of a.stages) {
       const x = (perCorso[s.corso] ??= { pct: 0, n: 0 })
-      x.pct += s.s.pct; x.n++
+      x.pct += re?.stages.find((z) => z.n === s.n)?.indice ?? s.s.pct; x.n++
     }
     for (const k of Object.keys(perCorso) as Corso[]) perCorso[k]!.pct /= perCorso[k]!.n
     return {
       id: r.id!, gara: r.gara, breve: abbrevia(r.gara), data: r.data,
-      pct: a.base.pct, pos: a.base.pos, tot: a.totale, posClasse: a.posClasse, totClasse: a.totClasse,
+      pct: a.base.pct, pos: a.base.pos,
+      reale: re?.indice ?? a.base.pct, realePrecisione: re?.precisione ?? null, realeVelocita: re?.velocita ?? null,
+      forzaCampo: re?.forza ?? 100, livelloCampo: re?.livello ?? 'medio', tot: a.totale, posClasse: a.posClasse, totClasse: a.totClasse,
       aPct: a.mio.aPct, aPctTop10: a.top10.aPct, precisione: a.mio.precisione, precisioneTop10: a.top10.precisione,
       tempoRel: a.top10.tempo ? a.mio.tempo / a.top10.tempo : 1,
       mancati100: a.colpiTot ? (a.tot.MI / a.colpiTot) * 100 : 0,
@@ -101,6 +110,9 @@ export function puntiForzaDebolezza(p: PuntoGara[]): Giudizio[] {
   else if (mi <= mi10) out.push({ tipo: 'forte', titolo: 'Mancati', testo: `Mancati sotto la media dei primi 10 (${mi.toFixed(1).replace('.', ',')} ogni 100 colpi).` })
   // Tendenze nel tempo
   if (n >= 3) {
+    const pr = pendenza(p.map((x) => x.reale))
+    if (pr > 0.5) out.push({ tipo: 'forte', titolo: 'Livello in crescita', testo: `Il punteggio reale sale di circa ${pr.toFixed(1).replace('.', ',')} a gara: dal ${p[0].reale.toFixed(1).replace('.', ',')} al ${p[n - 1].reale.toFixed(1).replace('.', ',')}, al netto di chi c'era in gara.` })
+    else if (pr < -0.5) out.push({ tipo: 'debole', titolo: 'Livello in calo', testo: `Il punteggio reale scende di circa ${(-pr).toFixed(1).replace('.', ',')} a gara, al netto della forza del campo.` })
     const pa = pendenza(p.map((x) => x.aPct)), pt = pendenza(p.map((x) => x.tempoRel)), pm = pendenza(p.map((x) => x.mancati100))
     if (pa > 0.01) out.push({ tipo: 'forte', titolo: 'Precisione in crescita', testo: `Le A salgono di circa ${Math.round(pa * 100)} punti a gara: dal ${Math.round(p[0].aPct * 100)}% al ${Math.round(p[n - 1].aPct * 100)}%.` })
     if (pm < -0.15) out.push({ tipo: 'forte', titolo: 'Meno mancati', testo: `Da ${p[0].mancati100.toFixed(1).replace('.', ',')} a ${p[n - 1].mancati100.toFixed(1).replace('.', ',')} mancati ogni 100 colpi.` })
@@ -117,8 +129,8 @@ export function puntiForzaDebolezza(p: PuntoGara[]): Giudizio[] {
     const ord = [...perCorso].sort((a, b) => b.pct - a.pct)
     const nome = (c: Corso) => (c === 'Short' ? 'corti' : c === 'Medium' ? 'medi' : 'lunghi')
     if (ord[0].pct - ord[ord.length - 1].pct > 3) {
-      out.push({ tipo: 'forte', titolo: `Stage ${nome(ord[0].c)}`, testo: `Il tuo terreno: ${ord[0].pct.toFixed(1).replace('.', ',')}% di media su ${ord[0].k} stage.` })
-      out.push({ tipo: 'debole', titolo: `Stage ${nome(ord[ord.length - 1].c)}`, testo: `${ord[ord.length - 1].pct.toFixed(1).replace('.', ',')}% di media su ${ord[ord.length - 1].k} stage: qui perdi di più.` })
+      out.push({ tipo: 'forte', titolo: `Stage ${nome(ord[0].c)}`, testo: `Il tuo terreno: ${ord[0].pct.toFixed(1).replace('.', ',')} di punteggio reale medio su ${ord[0].k} stage.` })
+      out.push({ tipo: 'debole', titolo: `Stage ${nome(ord[ord.length - 1].c)}`, testo: `${ord[ord.length - 1].pct.toFixed(1).replace('.', ',')} di punteggio reale medio su ${ord[ord.length - 1].k} stage: qui perdi di più.` })
     }
   }
   return out
