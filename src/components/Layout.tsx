@@ -1,7 +1,10 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AREE, STRUMENTI, areaDi } from '../modules'
-import { aggiornaColoriSeServe, sincronizzaDopoAccesso, sincronizzaTutto } from '../google/calendar'
+import { aggiornaColoriSeServe, sincronizzaTutto } from '../google/calendar'
+import { getAccount } from '../google/auth'
+import { avviaSincronizzazione } from '../sync/stato'
+import NuvolaSync from './NuvolaSync'
 import { useToast, Wordmark } from './ui'
 
 export default function Layout() {
@@ -13,17 +16,25 @@ export default function Layout() {
   const toast = useToast()
   useEffect(() => {
     aggiornaColoriSeServe()
+    if (getAccount()) avviaSincronizzazione()
   }, [])
   useEffect(() => {
     const msg = sessionStorage.getItem('hf-msg')
-    if (msg) {
-      sessionStorage.removeItem('hf-msg')
-      toast(msg)
-    } else if (sincronizzaDopoAccesso()) {
+    const dopo = sessionStorage.getItem('hf-dopo')
+    sessionStorage.removeItem('hf-msg')
+    sessionStorage.removeItem('hf-dopo')
+    if (msg) toast(msg)
+    if (dopo === 'calendario') {
       sincronizzaTutto()
         .then((r) => toast(`Google Calendar aggiornato (${r.inviati + r.eliminati} modifiche)`))
-        .catch(() => toast('Sincronizzazione non riuscita: riprova da Impostazioni'))
+        .catch(() => toast('Calendario non aggiornato: riprova da Impostazioni'))
     }
+    const ricevute = (e: Event) => {
+      const n = (e as CustomEvent<number>).detail
+      toast(n === 1 ? '1 modifica arrivata dagli altri dispositivi' : `${n} modifiche arrivate dagli altri dispositivi`)
+    }
+    window.addEventListener('hf-sync-ricevute', ricevute)
+    return () => window.removeEventListener('hf-sync-ricevute', ricevute)
   }, [toast])
 
   const area = areaDi(pathname)
@@ -48,6 +59,7 @@ export default function Layout() {
           </div>
         ))}
         <div className="spacer" />
+        <div className="sidebar-sync"><NuvolaSync conTesto /></div>
         {STRUMENTI.map((s) => (
           <NavLink key={s.path} to={s.path} className="nav-link"><s.icon size={20} /> {s.label}</NavLink>
         ))}
@@ -57,6 +69,7 @@ export default function Layout() {
         <header className="topbar">
           <Link to="/" style={{ textDecoration: 'none' }} aria-label="Oggi"><Wordmark size={24} /></Link>
           <div className="row" style={{ gap: 4 }}>
+            <NuvolaSync />
             {STRUMENTI.map((s) => (
               <NavLink key={s.path} to={s.path} className="btn icon ghost topbar-btn" aria-label={s.label} title={s.label}>
                 <s.icon size={21} />

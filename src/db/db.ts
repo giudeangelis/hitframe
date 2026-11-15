@@ -3,6 +3,7 @@ import type { StageAllenamento } from './types'
 import type { AnalisiGara, Arma, Componente, DrillPersonale, Evento, Impostazione, Intervento, Lotto, Profilo, Prova, Ricetta, SessioneCrono, VoceDiario } from './types'
 import type { RisultatoGara } from '../risultati/motore'
 import { ARMA_DEFAULT, RIFERIMENTI_DEFAULT, TEMPI_DEFAULT } from './types'
+import { nuovoId, segnalaModifica } from '../sync/segnali'
 
 export class HitframeDB extends Dexie {
   profilo!: EntityTable<Profilo, 'id'>
@@ -60,6 +61,26 @@ export class HitframeDB extends Dexie {
 }
 
 export const db = new HitframeDB()
+
+/*
+ * Per la sincronizzazione tra dispositivi:
+ * - i nuovi record ricevono id unici (non 1, 2, 3… che si scontrerebbero tra telefono e computer);
+ * - ogni modifica avvisa il sincronizzatore.
+ */
+for (const t of db.tables) {
+  const pk = t.schema.primKey
+  t.hook('creating', function (chiave, obj) {
+    segnalaModifica()
+    if (pk.auto && chiave === undefined && typeof pk.keyPath === 'string') {
+      const id = nuovoId()
+      ;(obj as Record<string, unknown>)[pk.keyPath] = id
+      return id
+    }
+    return undefined
+  })
+  t.hook('updating', function () { segnalaModifica(); return undefined })
+  t.hook('deleting', function () { segnalaModifica() })
+}
 
 export const nowIso = () => new Date().toISOString()
 

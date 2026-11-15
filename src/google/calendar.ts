@@ -1,6 +1,6 @@
 /**
  * Sincronizzazione con Google Calendar, tutta nel browser (nessun server).
- * Accesso OAuth 2.0 con redirect (funziona anche nell'app installata su iPhone),
+ * Usa lo stesso accesso Google della sincronizzazione (vedi auth.ts),
  * permesso limitato ai calendari creati dall'app: Hitframe crea il suo calendario
  * "Hitframe" e non vede né tocca gli altri.
  */
@@ -10,12 +10,13 @@ import { TIPI_EVENTO, type Evento } from '../db/types'
 import { fromKey } from '../lib/date'
 import { linkMaps } from '../lib/maps'
 
-export const SCOPE = 'https://www.googleapis.com/auth/calendar.app.created'
+import { AccessoRichiesto, accessToken, dimenticaToken, haScope, SCOPE_CALENDARIO, tokenValido as tokenGoogleValido } from './auth'
+export { AccessoRichiesto } from './auth'
+
+export const SCOPE = SCOPE_CALENDARIO
 const API = 'https://www.googleapis.com/calendar/v3'
 const TZ = 'Europe/Rome'
-const K_TOKEN = 'hf-google-token'
-const K_STATE = 'hf-google-state'
-const K_SYNC_DOPO = 'hf-google-sync-dopo-login'
+const K_ATTIVO = 'hf-cal-attivo'
 
 export interface ConfigGoogle {
   clientId: string
@@ -26,80 +27,15 @@ export interface ConfigGoogle {
 
 export const configVuota: ConfigGoogle = { clientId: '', email: '', calendarId: '', attivo: false }
 export const getConfig = () => getImp<ConfigGoogle>('google', configVuota)
-export const setConfig = (c: ConfigGoogle) => setImp('google', c)
-
-/* ---------- Token ---------- */
-
-interface Token { accessToken: string; scade: number }
-
-function leggiToken(): Token | null {
-  try {
-    const t = JSON.parse(localStorage.getItem(K_TOKEN) || 'null') as Token | null
-    return t && t.scade > Date.now() + 60_000 ? t : null
-  } catch {
-    return null
-  }
+export async function setConfig(c: ConfigGoogle) {
+  try { localStorage.setItem(K_ATTIVO, c.attivo ? '1' : '0') } catch { /* ignore */ }
+  await setImp('google', c)
 }
-export const tokenValido = () => leggiToken() !== null
-export function dimenticaToken() {
-  try { localStorage.removeItem(K_TOKEN) } catch { /* ignore */ }
-}
+/** Il calendario è attivo su questo dispositivo? (letto in modo sincrono per l'accesso Google) */
+export const calendarioAttivo = () => { try { return localStorage.getItem(K_ATTIVO) === '1' } catch { return false } }
 
-export class AccessoRichiesto extends Error {
-  constructor() { super('Serve accedere di nuovo a Google.') }
-}
-
-/** Indirizzo a cui Google rimanda dopo l'accesso (da registrare nella Google Cloud Console). */
-export const redirectUri = () => `${window.location.origin}${window.location.pathname}`
-
-/** Porta l'utente alla pagina di accesso Google. Al ritorno l'app riprende da `ritorno`. */
-export function avviaAccesso(cfg: Pick<ConfigGoogle, 'clientId' | 'email'>, ritorno: string, sincronizzaDopo = false) {
-  const state = `${crypto.randomUUID()}|${ritorno}`
-  localStorage.setItem(K_STATE, state)
-  if (sincronizzaDopo) localStorage.setItem(K_SYNC_DOPO, '1')
-  const q = new URLSearchParams({
-    client_id: cfg.clientId.trim(),
-    redirect_uri: redirectUri(),
-    response_type: 'token',
-    scope: SCOPE,
-    include_granted_scopes: 'true',
-    state,
-  })
-  if (cfg.email.trim()) q.set('login_hint', cfg.email.trim())
-  window.location.assign(`https://accounts.google.com/o/oauth2/v2/auth?${q}`)
-}
-
-/**
- * Da chiamare all'avvio, prima del router: se l'URL contiene il token di ritorno da Google lo salva
- * e ripristina la pagina dell'app. Restituisce un messaggio da mostrare, se serve.
- */
-export function gestisciRitornoAccesso(): string | null {
-  const h = window.location.hash
-  if (!/^#(access_token|error|state)=/.test(h) && !/[#&](access_token|error)=/.test(h)) return null
-  const p = new URLSearchParams(h.slice(1))
-  const atteso = localStorage.getItem(K_STATE)
-  const state = p.get('state') ?? ''
-  const ritorno = state.split('|')[1] || '#/impostazioni'
-  localStorage.removeItem(K_STATE)
-  window.history.replaceState(null, '', `${window.location.pathname}${ritorno.startsWith('#') ? ritorno : `#${ritorno}`}`)
-  if (p.get('error')) {
-    localStorage.removeItem(K_SYNC_DOPO)
-    return p.get('error') === 'access_denied' ? 'Accesso a Google annullato.' : `Google ha risposto: ${p.get('error')}`
-  }
-  if (!atteso || atteso !== state) return 'Accesso a Google non valido: riprova.'
-  const token = p.get('access_token')
-  const sec = Number(p.get('expires_in') || '3600')
-  if (!token) return 'Accesso a Google non riuscito.'
-  localStorage.setItem(K_TOKEN, JSON.stringify({ accessToken: token, scade: Date.now() + sec * 1000 }))
-  return null
-}
-
-/** Dopo un accesso avviato da "Sincronizza", la sincronizzazione riparte da sola. */
-export function sincronizzaDopoAccesso(): boolean {
-  const v = localStorage.getItem(K_SYNC_DOPO) === '1'
-  localStorage.removeItem(K_SYNC_DOPO)
-  return v && tokenValido()
-}
+/** Accesso valido e con il permesso per il calendario. */
+export const tokenValido = () => tokenGoogleValido() && haScope(SCOPE)
 
 /* ---------- API ---------- */
 
@@ -112,11 +48,11 @@ class ErroreApi extends Error {
 }
 
 async function api<T>(metodo: string, percorso: string, corpo?: unknown): Promise<T> {
-  const t = leggiToken()
-  if (!t) throw new AccessoRichiesto()
+  const t = accessToken()
+  if (!t || !haScope(SCOPE)) throw new AccessoRichiesto()
   const r = await fetch(`${API}${percorso}`, {
     method: metodo,
-    headers: { Authorization: `Bearer ${t.accessToken}`, ...(corpo ? { 'Content-Type': 'application/json' } : {}) },
+    headers: { Authorization: `Bearer ${t}`, ...(corpo ? { 'Content-Type': 'application/json' } : {}) },
     body: corpo ? JSON.stringify(corpo) : undefined,
   })
   if (r.status === 401) {
@@ -350,5 +286,10 @@ export async function sincronizzaTutto(): Promise<{ inviati: number; eliminati: 
 export async function scollega() {
   const cfg = await getConfig()
   await setConfig({ ...cfg, attivo: false })
-  dimenticaToken()
+}
+
+/** Allinea il flag sincrono con la configurazione salvata (dopo una sincronizzazione o un aggiornamento). */
+export async function allineaFlagCalendario() {
+  const cfg = await getConfig()
+  try { localStorage.setItem(K_ATTIVO, cfg.attivo ? '1' : '0') } catch { /* ignore */ }
 }
