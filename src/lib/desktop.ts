@@ -1,7 +1,7 @@
 /** Piccoli adattamenti per l'app desktop (Tauri): link esterni nel browser e controllo aggiornamenti. */
 import { suDesktop, versioneDesktop } from '../google/auth'
 
-const REPO = 'giudeangelis/hitframe'
+const REPO = 'hitframe/hitframe.github.io'
 export const PAGINA_DOWNLOAD = `https://github.com/${REPO}/releases/latest`
 
 export async function apriEsterno(url: string) {
