@@ -2,7 +2,7 @@ import { CloudDownload, HardDrive, Loader2, LogIn, ShieldCheck, Smartphone, Wifi
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
-import { avviaAccesso } from '../google/auth'
+import { avviaAccesso, suDesktop } from '../google/auth'
 import { scegli } from '../sync/collega'
 import { Wordmark } from './ui'
 
@@ -20,6 +20,7 @@ function Schermo({ children }: { children: React.ReactNode }) {
 /** Primo avvio: si entra con Google. */
 export function Benvenuto({ messaggio }: { messaggio?: string | null }) {
   const [online, setOnline] = useState(navigator.onLine)
+  const [attesa, setAttesa] = useState(false)
   useEffect(() => {
     const su = () => setOnline(true), giu = () => setOnline(false)
     window.addEventListener('online', su)
@@ -36,9 +37,10 @@ export function Benvenuto({ messaggio }: { messaggio?: string | null }) {
         <li><ShieldCheck size={18} /> <span>Nessun server: Hitframe non riceve né conserva i tuoi dati.</span></li>
       </ul>
       {messaggio && <div role="alert" className="accesso-errore">{messaggio}</div>}
-      <button className="btn primary accesso-btn" disabled={!online} onClick={() => avviaAccesso({ ritorno: '#/', dopo: 'collega', scegliAccount: true })}>
-        <LogIn size={20} /> Accedi con Google
+      <button className="btn primary accesso-btn" disabled={!online || attesa} onClick={() => { setAttesa(suDesktop()); avviaAccesso({ ritorno: '#/', dopo: 'collega', scegliAccount: true }) }}>
+        {attesa ? <Loader2 size={20} className="spin" /> : <LogIn size={20} />} {attesa ? 'Completa l’accesso nel browser…' : 'Accedi con Google'}
       </button>
+      {attesa && <p className="accesso-nota">Si è aperta una pagina di Google nel browser: entra con il tuo account e torna qui.</p>}
       {!online && <p className="accesso-nota">Per il primo accesso serve la connessione.</p>}
       <p className="accesso-nota">Serve un account Google (Gmail). <a href="privacy.html" target="_blank" rel="noreferrer">Privacy</a></p>
     </Schermo>

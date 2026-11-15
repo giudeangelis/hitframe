@@ -17,6 +17,65 @@ const K_STATE = 'hf-google-state'
 const K_ACCOUNT = 'hf-account'
 const K_DOPO = 'hf-google-dopo'
 const K_SILENZIOSO = 'hf-google-silenzioso'
+const K_REFRESH = 'hf-google-refresh'
+const K_ESITO_DESKTOP = 'hf-esito-desktop'
+
+/* ---------- App desktop (Mac/Windows) ---------- */
+
+/** Siamo dentro l'app desktop (Tauri)? Lì l'accesso passa dal browser del computer. */
+export const suDesktop = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+
+async function invoca<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  const { invoke } = await import('@tauri-apps/api/core')
+  return invoke<T>(cmd, args)
+}
+
+interface TokenDesktop { access_token: string; expires_in: number; scope: string; refresh_token?: string | null }
+
+function salvaTokenDesktop(t: TokenDesktop) {
+  localStorage.setItem(K_TOKEN, JSON.stringify({ accessToken: t.access_token, scade: Date.now() + t.expires_in * 1000, scope: t.scope }))
+  if (t.refresh_token) localStorage.setItem(K_REFRESH, t.refresh_token)
+}
+
+/** Rinnova l'accesso senza schermate (solo app desktop, con il refresh token). */
+export async function rinnovaSilenzioso(): Promise<boolean> {
+  if (!suDesktop()) return false
+  const r = localStorage.getItem(K_REFRESH)
+  if (!r) return false
+  try {
+    salvaTokenDesktop(await invoca<TokenDesktop>('google_rinnova', { refreshToken: r }))
+    return true
+  } catch (e) {
+    if (String(e).includes('ACCESSO_SCADUTO')) localStorage.removeItem(K_REFRESH)
+    return false
+  }
+}
+export const puoRinnovareDaSolo = () => suDesktop() && !!localStorage.getItem(K_REFRESH)
+
+/** Versione dell'app desktop installata (null nel browser). */
+export async function versioneDesktop(): Promise<string | null> {
+  if (!suDesktop()) return null
+  try { return await invoca<string>('versione_app') } catch { return null }
+}
+
+async function accessoDesktop(o: OpzioniAccesso, scope: string) {
+  const ritorno = o.ritorno ?? window.location.hash ?? '#/'
+  let esito: EsitoRitorno
+  try {
+    const t = await invoca<TokenDesktop>('google_accedi', {
+      scope,
+      loginHint: o.scegliAccount ? null : getAccount()?.email ?? null,
+      scegliAccount: !!o.scegliAccount,
+    })
+    salvaTokenDesktop(t)
+    esito = { messaggio: null, dopo: o.dopo ?? null, ok: true }
+  } catch (e) {
+    esito = { messaggio: String(e).replace(/^Error:\s*/, ''), dopo: null, ok: false }
+  }
+  sessionStorage.setItem(K_ESITO_DESKTOP, JSON.stringify(esito))
+  window.location.hash = ritorno.startsWith('#') ? ritorno : `#${ritorno}`
+  window.location.reload()
+}
 
 export interface Account {
   email: string
@@ -95,6 +154,18 @@ export function avviaAccesso(o: OpzioniAccesso = {}) {
   if (o.silenzioso) sessionStorage.setItem(K_SILENZIOSO, '1')
   const cal = o.calendario ?? (() => { try { return localStorage.getItem('hf-cal-attivo') === '1' } catch { return false } })()
   const scope = [...SCOPE_BASE, ...(cal ? [SCOPE_CALENDARIO] : [])].join(' ')
+  if (suDesktop()) {
+    // nell'app desktop si passa dal browser del computer; un rinnovo "silenzioso" usa il refresh token
+    if (o.silenzioso) {
+      void rinnovaSilenzioso().then((ok) => {
+        sessionStorage.setItem(K_ESITO_DESKTOP, JSON.stringify({ messaggio: null, dopo: ok ? o.dopo ?? null : null, ok }))
+        if (ok) window.location.reload()
+      })
+      return
+    }
+    void accessoDesktop(o, scope)
+    return
+  }
   const q = new URLSearchParams({
     client_id: clientId(),
     redirect_uri: redirectUri(),
@@ -121,6 +192,11 @@ export interface EsitoRitorno {
  * e ripristina la pagina dell'app.
  */
 export function gestisciRitornoAccesso(): EsitoRitorno | null {
+  const desk = sessionStorage.getItem(K_ESITO_DESKTOP)
+  if (desk) {
+    sessionStorage.removeItem(K_ESITO_DESKTOP)
+    try { return JSON.parse(desk) as EsitoRitorno } catch { return null }
+  }
   const h = window.location.hash
   if (!/^#(access_token|error|state)=/.test(h) && !/[#&](access_token|error)=/.test(h)) return null
   const p = new URLSearchParams(h.slice(1))
@@ -175,8 +251,9 @@ export async function leggiProfiloGoogle(): Promise<Pick<Account, 'email' | 'nom
 
 /** Chiude l'accesso su questo dispositivo e revoca il token. I dati locali restano. */
 export async function esci() {
-  const t = accessToken()
+  const t = localStorage.getItem(K_REFRESH) ?? accessToken()
   dimenticaToken()
+  localStorage.removeItem(K_REFRESH)
   setAccount(null)
   if (t) {
     try { await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(t)}`, { method: 'POST' }) } catch { /* ignore */ }

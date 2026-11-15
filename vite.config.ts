@@ -3,11 +3,12 @@ import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // base relativa: funziona su GitHub Pages, in una sottocartella o in locale
-export default defineConfig({
+// --mode desktop: build per l'app Mac/Windows (Tauri), senza service worker
+export default defineConfig(({ mode }) => ({
   base: './',
   plugins: [
     react(),
-    VitePWA({
+    mode !== 'desktop' && VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'icon.svg'],
       manifest: {
@@ -33,4 +34,4 @@ export default defineConfig({
       },
     }),
   ],
-})
+}))

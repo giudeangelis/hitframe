@@ -5,7 +5,7 @@
  * - quando l'app va in secondo piano, quando torna la rete e ogni pochi minuti.
  */
 import { useSyncExternalStore } from 'react'
-import { AccessoRichiesto, avviaAccesso, getAccount, googleRaggiungibile, tokenValido } from '../google/auth'
+import { AccessoRichiesto, avviaAccesso, getAccount, googleRaggiungibile, puoRinnovareDaSolo, rinnovaSilenzioso, tokenValido } from '../google/auth'
 import { leggiBase, modificheInSospeso, sincronizza } from './motore'
 import { suModifica } from './segnali'
 
@@ -60,6 +60,7 @@ export function sincronizzaOra(): Promise<void> {
     clearTimeout(timer)
     if (!getAccount() || !leggiBase()) { imposta({ fase: await fasePerRiposo() }); return }
     if (!online()) { imposta({ fase: 'offline' }); return }
+    if (!tokenValido() && puoRinnovareDaSolo()) await rinnovaSilenzioso()
     if (!tokenValido()) { imposta({ fase: await fasePerRiposo() }); return }
     imposta({ fase: 'in-corso', messaggio: '' })
     try {
@@ -100,6 +101,11 @@ function programma(ms: number) {
 
 /** Rinnova l'accesso passando da Google. Se Google chiede qualcosa, si fa con un tocco. */
 export function rinnovaAccesso(silenzioso = true) {
+  if (puoRinnovareDaSolo()) {
+    // app desktop: niente browser, basta il refresh token
+    void rinnovaSilenzioso().then((ok) => (ok ? sincronizzaOra() : avviaAccesso({ dopo: 'sync' })))
+    return
+  }
   sessionStorage.setItem(K_TENTATO, '1')
   avviaAccesso({ silenzioso, dopo: 'sync' })
 }
@@ -127,7 +133,7 @@ export function avviaSincronizzazione() {
   setInterval(() => { if (document.visibilityState === 'visible') void sincronizzaOra() }, OGNI)
 
   // all'apertura: se l'accesso è scaduto e c'è rete, un passaggio lampo da Google (una volta per sessione)
-  if (getAccount() && leggiBase() && online() && !tokenValido() && !sessionStorage.getItem(K_TENTATO)) {
+  if (getAccount() && leggiBase() && online() && !tokenValido() && !puoRinnovareDaSolo() && !sessionStorage.getItem(K_TENTATO)) {
     void googleRaggiungibile().then((ok) => {
       if (ok) rinnovaAccesso(true)
       else void sincronizzaOra()

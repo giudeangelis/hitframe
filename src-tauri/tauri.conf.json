@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Hitframe",
+  "version": "0.17.0",
+  "identifier": "it.hitframe.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "npm run build:desktop",
+    "beforeDevCommand": "npm run dev"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Hitframe",
+        "width": 1280,
+        "height": 860,
+        "minWidth": 380,
+        "minHeight": 600,
+        "backgroundColor": "#0B0B0C"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "app", "nsis"],
+    "category": "SportsGame",
+    "shortDescription": "Allenamento e gare IPSC",
+    "copyright": "© 2026 Giuseppe De Angelis",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "macOS": { "minimumSystemVersion": "11.0" }
+  }
+}

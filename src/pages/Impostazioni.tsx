@@ -6,6 +6,7 @@ import ImpostazioniAI from '../components/ImpostazioniAI'
 import ImpostazioniAccount from '../components/ImpostazioniAccount'
 import { getAccount } from '../google/auth'
 import { sincronizzaOra } from '../sync/stato'
+import { AppComputer } from '../components/AppComputer'
 import { PageHeader, useToast } from '../components/ui'
 import { cancellaTutto, ripristinaBackup, scaricaBackup } from '../db/backup'
 import { db } from '../db/db'
@@ -62,6 +63,8 @@ export default function Impostazioni() {
 
       <ImpostazioniGoogle />
 
+      <AppComputer />
+
       <ImpostazioniAI />
 
       <section className="card form">
@@ -81,7 +84,7 @@ export default function Impostazioni() {
         )}
       </section>
 
-      <p className="prose" style={{ fontSize: 12, textAlign: 'center' }}>Hitframe · versione 0.16.0 · © {new Date().getFullYear()} Giuseppe De Angelis</p>
+      <p className="prose" style={{ fontSize: 12, textAlign: 'center' }}>Hitframe · versione 0.17.0 · © {new Date().getFullYear()} Giuseppe De Angelis</p>
     </div>
   )
 }

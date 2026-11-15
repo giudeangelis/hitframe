@@ -3,11 +3,14 @@ import { createRoot } from 'react-dom/client'
 import './styles.css'
 import App from './App'
 import { gestisciRitornoAccesso } from './google/auth'
+import { installaLinkEsterni } from './lib/desktop'
 
 // Ritorno dall'accesso Google: va gestito prima che parta il router
 const esito = gestisciRitornoAccesso()
 if (esito?.messaggio) sessionStorage.setItem('hf-msg', esito.messaggio)
 if (esito?.ok && esito.dopo) sessionStorage.setItem('hf-dopo', esito.dopo)
+
+installaLinkEsterni()
 
 // Chiede al browser di non cancellare i dati locali quando manca spazio
 if (navigator.storage?.persist) {

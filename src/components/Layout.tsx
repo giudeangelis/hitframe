@@ -5,6 +5,7 @@ import { aggiornaColoriSeServe, sincronizzaTutto } from '../google/calendar'
 import { getAccount } from '../google/auth'
 import { avviaSincronizzazione } from '../sync/stato'
 import NuvolaSync from './NuvolaSync'
+import { aggiornamentoDesktop } from '../lib/desktop'
 import { useToast, Wordmark } from './ui'
 
 export default function Layout() {
@@ -18,6 +19,9 @@ export default function Layout() {
     aggiornaColoriSeServe()
     if (getAccount()) avviaSincronizzazione()
   }, [])
+  useEffect(() => {
+    void aggiornamentoDesktop().then((a) => a && toast(`Nuova versione di Hitframe per computer (${a.nuova}): la trovi in Impostazioni`))
+  }, [toast])
   useEffect(() => {
     const msg = sessionStorage.getItem('hf-msg')
     const dopo = sessionStorage.getItem('hf-dopo')
