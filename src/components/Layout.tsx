@@ -5,6 +5,7 @@ import { aggiornaColoriSeServe, sincronizzaTutto } from '../google/calendar'
 import { getAccount } from '../google/auth'
 import { avviaSincronizzazione } from '../sync/stato'
 import NuvolaSync from './NuvolaSync'
+import ChatAI from './ChatAI'
 import { aggiornamentoDesktop } from '../lib/desktop'
 import { useToast, Wordmark } from './ui'
 
@@ -101,6 +102,7 @@ export default function Layout() {
           </NavLink>
         ))}
       </nav>
+      <ChatAI />
     </div>
   )
 }

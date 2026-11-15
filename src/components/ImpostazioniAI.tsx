@@ -3,6 +3,7 @@ import { CheckCircle2, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { getConfigAI, LINK_CHIAVI, MODELLI_DEFAULT, NOMI_FORNITORI, provaCollegamento, setConfigAI, type ConfigAI, type Fornitore } from '../ai/ai'
 import { useToast } from './ui'
+import { getImp, setImp } from '../db/db'
 
 export default function ImpostazioniAI() {
   const toast = useToast()
@@ -10,6 +11,7 @@ export default function ImpostazioniAI() {
   const [bozza, setBozza] = useState<ConfigAI | null>(null)
   const [prova, setProva] = useState<'idle' | 'in-corso'>('idle')
   const [errore, setErrore] = useState('')
+  const chat = useLiveQuery(() => getImp<boolean>('chatAI', false))
   if (salvata === undefined) return null
   const c: ConfigAI = bozza ?? salvata ?? { fornitore: 'claude', chiave: '', modello: MODELLI_DEFAULT.claude }
   const set = (x: Partial<ConfigAI>) => setBozza({ ...c, ...x })
@@ -66,6 +68,12 @@ export default function ImpostazioniAI() {
         <button className="btn" onClick={verifica} disabled={!c.chiave.trim() || prova === 'in-corso'}>{prova === 'in-corso' ? 'Verifico…' : 'Prova collegamento'}</button>
         {salvata && <button className="btn ghost" onClick={async () => { await setConfigAI(null); setBozza(null); toast('Assistente AI scollegato') }}>Scollega</button>}
       </div>
+      {salvata && (
+        <label className="row" style={{ gap: 10, cursor: 'pointer' }}>
+          <input type="checkbox" checked={!!chat} onChange={(e) => setImp('chatAI', e.target.checked)} />
+          <span><b>Chat con il coach AI</b><br /><span className="meta">Un pulsante in basso a destra per fare domande sui tuoi dati, dalla pagina in cui sei. Spegnilo quando non serve.</span></span>
+        </label>
+      )}
       {errore && <div role="alert" style={{ color: 'var(--accent-strong)', fontSize: 13, lineHeight: 1.45, wordBreak: 'break-word' }}>{errore}</div>}
     </section>
   )

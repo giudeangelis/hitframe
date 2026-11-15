@@ -41,6 +41,8 @@ export interface RisultatoGara {
   altre?: Record<string, { valoreStage: Record<number, number>; conc: { num: number; nome: string; cls: string; hf: Record<number, number> }[] }>
   /** Abbinamento con il libretto di gara (Analisi gara): stage risultati → stage libretto */
   abbinamento?: { analisiId: number; mappa: Record<number, number>; incerti: number[]; manuale: boolean }
+  /** Arma usata in questa gara (se non indicata, si deduce dalla data "dal" delle armi) */
+  armaId?: number | null
 }
 
 const MESI: Record<string, string> = { gen: '01', feb: '02', mar: '03', apr: '04', mag: '05', giu: '06', lug: '07', ago: '08', set: '09', ott: '10', nov: '11', dic: '12', jan: '01', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', dec: '12' }

@@ -581,3 +581,19 @@ table.colpi th { font-family: var(--display); letter-spacing: 1.5px; text-transf
 .hero .badge{background:#14140a;color:#e5ea1e}
 .hero .btn{background:#14140a;border-color:#14140a;color:#f4f4f2}
 .hero .btn.primary{color:#e5ea1e}
+.filtri-stat { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* ---------- 0.19 · Chat con il coach AI ---------- */
+.chat-fab { position: fixed; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 40; width: 54px; height: 54px; border-radius: 50%; border: 0; background: var(--accent); color: #14140a; display: grid; place-items: center; box-shadow: 0 6px 20px rgba(0,0,0,.45); cursor: pointer; }
+.chat-pannello { position: fixed; right: 12px; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 55; width: min(420px, calc(100vw - 24px)); height: min(620px, calc(100dvh - 120px)); background: var(--surface); border: 1px solid var(--border); border-radius: 14px; display: flex; flex-direction: column; box-shadow: 0 16px 50px rgba(0,0,0,.55); overflow: hidden; }
+.chat-testa { display: flex; align-items: center; gap: 6px; padding: 12px 12px 10px 16px; border-bottom: 1px solid var(--border); }
+.chat-testa > div { flex: 1; min-width: 0; }
+.chat-corpo { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.chat-msg { max-width: 88%; padding: 10px 12px; border-radius: 12px; font-size: 14.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.chat-msg.utente { align-self: flex-end; background: var(--accent); color: #14140a; border-bottom-right-radius: 4px; }
+.chat-msg.ai { align-self: flex-start; background: var(--surface-2); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.chat-vuota { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; color: var(--muted); font-size: 14px; }
+.chat-vuota p { margin: 0 0 4px; }
+.chat-errore { color: var(--accent-strong); font-size: 13px; }
+.chat-piede { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--border); align-items: flex-end; }
+.chat-piede textarea { flex: 1; resize: none; max-height: 120px; min-height: 44px; }
+@media (min-width: 900px) { .chat-fab { bottom: 24px; right: 24px; } .chat-pannello { bottom: 24px; right: 24px; } }

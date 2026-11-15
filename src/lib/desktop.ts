@@ -1,5 +1,6 @@
 /** Piccoli adattamenti per l'app desktop (Tauri): link esterni nel browser e controllo aggiornamenti. */
 import { suDesktop, versioneDesktop } from '../google/auth'
+import { richiesta } from './rete'
 
 const REPO = 'hitframe/hitframe.github.io'
 export const PAGINA_DOWNLOAD = `https://github.com/${REPO}/releases/latest`
@@ -40,7 +41,7 @@ export async function aggiornamentoDesktop(): Promise<{ attuale: string; nuova: 
   const attuale = await versioneDesktop()
   if (!attuale) return null
   try {
-    const r = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } })
+    const r = await richiesta(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } })
     if (!r.ok) return null
     const j = await r.json() as { tag_name?: string; html_url?: string }
     const nuova = (j.tag_name ?? '').replace(/^[^0-9]*/, '')

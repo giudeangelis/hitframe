@@ -1,7 +1,7 @@
 {
   "name": "hitframe",
   "private": true,
-  "version": "0.18.3",
+  "version": "0.19.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
     "@fontsource/barlow-condensed": "^5.3.0",
     "@fontsource/inter": "^5.3.0",
     "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/plugin-http": "^2.9.0",
     "@tauri-apps/plugin-opener": "^2.7.3",
     "@types/three": "^0.187.0",
     "date-fns": "^4.4.0",

@@ -5,11 +5,12 @@ import { Link } from 'react-router-dom'
 import { DOMANDE } from '../abilita/questionario'
 import { fmt2, tuttiDrill } from '../allenamento/servizi'
 import { GraficoLinee, Radar } from '../components/Grafici'
-import { Empty, PageHeader, Segmented } from '../components/ui'
+import { Empty, PageHeader } from '../components/ui'
 import { db, getImp, normalizzaProfilo } from '../db/db'
 import { fmt } from '../lib/date'
 import { inAltreDivisioni, nomeLeggibile, trovaPerNome } from '../risultati/motore'
 import { pendenza, puntiForzaDebolezza, puntiGara, type Corso } from '../statistiche/calcoli'
+import { armaDiGara, nelPeriodo, opzioniPeriodo } from '../statistiche/filtri'
 
 const f1 = (n: number) => n.toFixed(1).replace('.', ',')
 
@@ -25,15 +26,20 @@ export default function Statistiche() {
 
   const [vediAltre, setVediAltre] = useState(false)
   const [tutteGare, setTutteGare] = useState(false)
-  const [periodo, setPeriodo] = useState<'anno' | 'due' | 'tutto'>('tutto')
-  const punti = useMemo(() => (risultati && analisi ? puntiGara(risultati, analisi) : []), [risultati, analisi])
+  const [periodo, setPeriodo] = useState('tutto')
+  const [armaFiltro, setArmaFiltro] = useState<number | 'tutte'>('tutte')
+  const armi = useLiveQuery(() => db.armi.toArray()) ?? []
+  const tuttiPunti = useMemo(() => (risultati && analisi ? puntiGara(risultati, analisi) : []), [risultati, analisi])
+  const armaPerGara = useMemo(() => new Map((risultati ?? []).map((r) => [r.id!, armaDiGara(r, armi)?.id ?? null])), [risultati, armi])
+  const punti = useMemo(() => tuttiPunti.filter((p) => nelPeriodo(p.data, periodo) && (armaFiltro === 'tutte' || armaPerGara.get(p.id) === armaFiltro)),
+    [tuttiPunti, periodo, armaFiltro, armaPerGara])
   const giudizi = useMemo(() => puntiForzaDebolezza(punti), [punti])
 
   if (!risultati || !analisi || !profilo) return <div className="page" />
 
-  // periodo dei grafici: con lo storico lungo si sceglie quanto guardare indietro
-  const daData = periodo === 'tutto' ? '' : new Date(Date.now() - (periodo === 'anno' ? 365 : 730) * 86400000).toISOString().slice(0, 10)
-  const pG = punti.filter((p) => p.data >= daData)
+  const pG = punti
+  const opzioni = opzioniPeriodo(tuttiPunti.map((p) => p.data))
+  const armiUsate = armi.filter((a) => [...armaPerGara.values()].includes(a.id!))
   const lungo = pG.length > 1 && Date.parse(pG[pG.length - 1].data) - Date.parse(pG[0].data) > 300 * 86400000
   const et = pG.map((p) => fmt(p.data, lungo ? 'MMM yy' : 'd MMM'))
   const trend = pendenza(punti.map((p) => p.reale))
@@ -100,7 +106,27 @@ export default function Statistiche() {
     <div className="page">
       <PageHeader title="Statistiche" sub="Andamento, punti di forza e cosa migliorare" />
 
-      {punti.length === 0 ? (
+      {tuttiPunti.length > 0 && (
+        <div className="filtri-stat">
+          <select className="input" aria-label="Periodo" value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
+            {opzioni.filter((o) => !o.gruppo).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {['Anno', 'Semestre', 'Trimestre'].map((g) => (
+              <optgroup key={g} label={g}>{opzioni.filter((o) => o.gruppo === g).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>
+            ))}
+          </select>
+          <select className="input" aria-label="Arma" value={String(armaFiltro)} onChange={(e) => setArmaFiltro(e.target.value === 'tutte' ? 'tutte' : +e.target.value)}>
+            <option value="tutte">Tutte le armi</option>
+            {(armiUsate.length ? armiUsate : armi).map((a) => <option key={a.id} value={a.id}>{a.nome || a.modello}</option>)}
+          </select>
+          <div className="meta" style={{ gridColumn: '1 / -1' }}>
+            {punti.length} gare su {tuttiPunti.length}{armi.length === 0 ? ' · aggiungi le tue armi in Materiale → Attrezzatura (con la data “dal”) per filtrare per arma' : ''}
+          </div>
+        </div>
+      )}
+
+      {tuttiPunti.length > 0 && punti.length === 0 ? (
+        <div className="card"><Empty icon={<BarChart3 size={28} />} text="Nessuna gara in questo periodo o con questa arma." /></div>
+      ) : punti.length === 0 ? (
         <div className="card">
           <Empty icon={<BarChart3 size={28} />} text="Importa i risultati delle tue gare: qui vedrai l’andamento, la precisione, la velocità e gli errori gara dopo gara."
             action={<Link to="/risultati" className="btn primary"><Medal size={18} /> Vai a Risultati</Link>} />
@@ -125,11 +151,6 @@ export default function Statistiche() {
                 ))}
               </div>
             </section>
-          )}
-
-          {punti.length > 12 && (
-            <Segmented<'anno' | 'due' | 'tutto'> label="Periodo dei grafici" value={periodo} onChange={setPeriodo}
-              options={[{ value: 'anno', label: 'Ultimi 12 mesi' }, { value: 'due', label: '2 anni' }, { value: 'tutto', label: `Tutto (${punti.length})` }]} />
           )}
 
           <section className="card">

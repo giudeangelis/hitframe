@@ -11,6 +11,7 @@ import { fromKey } from '../lib/date'
 import { linkMaps } from '../lib/maps'
 
 import { AccessoRichiesto, accessToken, dimenticaToken, haScope, SCOPE_CALENDARIO, tokenValido as tokenGoogleValido } from './auth'
+import { richiesta } from '../lib/rete'
 export { AccessoRichiesto } from './auth'
 
 export const SCOPE = SCOPE_CALENDARIO
@@ -50,7 +51,7 @@ class ErroreApi extends Error {
 async function api<T>(metodo: string, percorso: string, corpo?: unknown): Promise<T> {
   const t = accessToken()
   if (!t || !haScope(SCOPE)) throw new AccessoRichiesto()
-  const r = await fetch(`${API}${percorso}`, {
+  const r = await richiesta(`${API}${percorso}`, {
     method: metodo,
     headers: { Authorization: `Bearer ${t}`, ...(corpo ? { 'Content-Type': 'application/json' } : {}) },
     body: corpo ? JSON.stringify(corpo) : undefined,

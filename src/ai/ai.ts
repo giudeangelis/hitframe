@@ -3,6 +3,7 @@
  * direttamente verso il fornitore: nessun server di Hitframe in mezzo.
  */
 import { getImp, setImp } from '../db/db'
+import { richiesta } from '../lib/rete'
 
 export type Fornitore = 'claude' | 'gemini' | 'openai'
 
@@ -40,6 +41,10 @@ interface Richiesta {
   testo: string
   immagine?: { base64: string; mime: string }
   maxToken?: number
+  /** 'testo' per risposte libere (chat); di base si chiede JSON */
+  formato?: 'json' | 'testo'
+  /** Conversazione precedente (chat): alternanza utente/assistente */
+  storia?: { ruolo: 'utente' | 'ai'; testo: string }[]
 }
 
 /** Traduce gli errori più comuni in una frase che dice cosa fare. */
@@ -72,7 +77,7 @@ export async function chiedi(cfg: ConfigAI, req: Richiesta): Promise<string> {
       const content: unknown[] = []
       if (req.immagine) content.push({ type: 'image', source: { type: 'base64', media_type: req.immagine.mime, data: req.immagine.base64 } })
       content.push({ type: 'text', text: req.testo })
-      r = await fetch('https://api.anthropic.com/v1/messages', {
+      r = await richiesta('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -80,7 +85,10 @@ export async function chiedi(cfg: ConfigAI, req: Richiesta): Promise<string> {
           'anthropic-version': '2023-06-01',
           'anthropic-dangerous-direct-browser-access': 'true',
         },
-        body: JSON.stringify({ model: modello, max_tokens: maxToken, system: req.sistema, messages: [{ role: 'user', content }] }),
+        body: JSON.stringify({ model: modello, max_tokens: maxToken, system: req.sistema, messages: [
+          ...(req.storia ?? []).map((m) => ({ role: m.ruolo === 'utente' ? 'user' : 'assistant', content: m.testo })),
+          { role: 'user', content },
+        ] }),
       })
       if (!r.ok) throw new ErroreAI(await leggiErrore(r))
       const j = await r.json()
@@ -90,14 +98,18 @@ export async function chiedi(cfg: ConfigAI, req: Richiesta): Promise<string> {
     // OpenAI
     const content: unknown[] = [{ type: 'text', text: req.testo }]
     if (req.immagine) content.push({ type: 'image_url', image_url: { url: `data:${req.immagine.mime};base64,${req.immagine.base64}` } })
-    r = await fetch('https://api.openai.com/v1/chat/completions', {
+    r = await richiesta('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${cfg.chiave.trim()}` },
       body: JSON.stringify({
         model: modello,
         max_completion_tokens: maxToken,
-        response_format: { type: 'json_object' },
-        messages: [{ role: 'system', content: req.sistema }, { role: 'user', content }],
+        ...(req.formato === 'testo' ? {} : { response_format: { type: 'json_object' } }),
+        messages: [
+          { role: 'system', content: req.sistema },
+          ...(req.storia ?? []).map((m) => ({ role: m.ruolo === 'utente' ? 'user' : 'assistant', content: m.testo })),
+          { role: 'user', content },
+        ],
       }),
     })
     if (!r.ok) throw new ErroreAI(await leggiErrore(r))
@@ -105,7 +117,8 @@ export async function chiedi(cfg: ConfigAI, req: Richiesta): Promise<string> {
     return j.choices?.[0]?.message?.content ?? ''
   } catch (e) {
     if (e instanceof ErroreAI) throw e
-    throw new ErroreAI('Connessione all’AI non riuscita. Controlla la rete.')
+    const dettaglio = e instanceof Error && e.message ? ` (${e.message})` : ''
+    throw new ErroreAI(`Connessione all’AI non riuscita${dettaglio}. Controlla la rete.`)
   }
 }
 
@@ -119,14 +132,17 @@ async function chiediGemini(chiave: string, modello: string, req: Richiesta, max
   parts.push({ text: req.testo })
   const body = JSON.stringify({
     system_instruction: { parts: [{ text: req.sistema }] },
-    contents: [{ role: 'user', parts }],
-    generationConfig: { maxOutputTokens: maxToken, responseMimeType: 'application/json' },
+    contents: [
+      ...(req.storia ?? []).map((m) => ({ role: m.ruolo === 'utente' ? 'user' : 'model', parts: [{ text: m.testo }] })),
+      { role: 'user', parts },
+    ],
+    generationConfig: { maxOutputTokens: maxToken, ...(req.formato === 'testo' ? {} : { responseMimeType: 'application/json' }) },
   })
   const modelli = [modello, ...RISERVE_GEMINI.filter((m) => m !== modello)]
   let ultimo = ''
   for (const m of modelli) {
     for (let tentativo = 0; tentativo < 2; tentativo++) {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`, {
+      const r = await richiesta(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-goog-api-key': chiave },
         body,

@@ -5,6 +5,8 @@
  * lampo da Google (senza schermate, se l'utente è già entrato) per rinnovarlo.
  */
 
+import { richiesta } from '../lib/rete'
+
 /** Client ID OAuth del progetto Google "Hitframe" (non è un segreto: identifica l'app). */
 export const CLIENT_ID = '301990574899-oe6osgq7k8c938nk5s3i2pvlgd32e5ss.apps.googleusercontent.com'
 
@@ -229,7 +231,7 @@ export async function googleRaggiungibile(ms = 2500): Promise<boolean> {
   const ctrl = new AbortController()
   const t = setTimeout(() => ctrl.abort(), ms)
   try {
-    await fetch('https://accounts.google.com/generate_204', { mode: 'no-cors', cache: 'no-store', signal: ctrl.signal })
+    await window.fetch('https://accounts.google.com/generate_204', { mode: 'no-cors', cache: 'no-store', signal: ctrl.signal })
     return true
   } catch {
     return false
@@ -242,7 +244,7 @@ export async function googleRaggiungibile(ms = 2500): Promise<boolean> {
 export async function leggiProfiloGoogle(): Promise<Pick<Account, 'email' | 'nome' | 'foto'>> {
   const t = accessToken()
   if (!t) throw new AccessoRichiesto()
-  const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: `Bearer ${t}` } })
+  const r = await richiesta('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: `Bearer ${t}` } })
   if (r.status === 401) { dimenticaToken(); throw new AccessoRichiesto() }
   if (!r.ok) throw new Error(`Google non risponde (${r.status})`)
   const j = await r.json() as { email?: string; name?: string; picture?: string }
@@ -256,6 +258,6 @@ export async function esci() {
   localStorage.removeItem(K_REFRESH)
   setAccount(null)
   if (t) {
-    try { await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(t)}`, { method: 'POST' }) } catch { /* ignore */ }
+    try { await richiesta(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(t)}`, { method: 'POST' }) } catch { /* ignore */ }
   }
 }

@@ -1,5 +1,6 @@
 /** Accesso alla cartella nascosta dell'app nel Google Drive dell'utente (appDataFolder). */
 import { AccessoRichiesto, accessToken, dimenticaToken } from '../google/auth'
+import { richiesta } from '../lib/rete'
 
 const NOME = 'hitframe-dati.json.gz'
 const API = 'https://www.googleapis.com/drive/v3'
@@ -10,7 +11,7 @@ export interface FileRemoto { id: string; version: string; modifiedTime: string 
 async function chiama(url: string, init: RequestInit = {}): Promise<Response> {
   const t = accessToken()
   if (!t) throw new AccessoRichiesto()
-  const r = await fetch(url, { ...init, headers: { ...(init.headers ?? {}), Authorization: `Bearer ${t}` } })
+  const r = await richiesta(url, { ...init, headers: { ...(init.headers ?? {}), Authorization: `Bearer ${t}` } })
   if (r.status === 401) {
     dimenticaToken()
     throw new AccessoRichiesto()

@@ -13,6 +13,7 @@ import { metalli } from '../analisi/motore'
 import type { StageLetto } from '../analisi/tipi'
 import DiarioCollegato from '../components/DiarioCollegato'
 import { descriviCampo, punteggioReale } from '../risultati/reale'
+import { armaDiGara } from '../statistiche/filtri'
 import { inAltreDivisioni, analizza, avversariVicini, colpiStage, confronto, indicazioni, nomeLeggibile, trovaPerNome, type Analisi, type RisultatoGara } from '../risultati/motore'
 import { getImp, setImp } from '../db/db'
 import { Star } from 'lucide-react'
@@ -28,6 +29,7 @@ export default function RisultatoDettaglio() {
   const { id } = useParams()
   const rid = Number(id)
   const r = useLiveQuery(() => db.risultati.get(rid), [rid])
+  const armi = useLiveQuery(() => db.armi.toArray()) ?? []
   const [vista, setVista] = useState<Vista>('riepilogo')
   const navigate = useNavigate()
   const [conferma, setConferma] = useState(false)
@@ -90,6 +92,15 @@ export default function RisultatoDettaglio() {
       <Segmented<Vista> label="Sezione" value={vista} onChange={setVista}
         options={[{ value: 'riepilogo', label: 'Riepilogo' }, { value: 'stage', label: 'Stage' }, { value: 'avversari', label: 'Avversari' }, { value: 'allenamento', label: 'Allena' }]} />
 
+      {vista === 'riepilogo' && armi.length > 0 && (
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label htmlFor="ris-arma">Arma usata in questa gara</label>
+          <select id="ris-arma" className="input" value={r.armaId ?? ''} onChange={(e) => db.risultati.update(r.id!, { armaId: e.target.value ? +e.target.value : null })}>
+            <option value="">{`Automatica (${armaDiGara({ data: r.data, armaId: null }, armi)?.nome || 'nessuna'})`}</option>
+            {armi.map((x) => <option key={x.id} value={x.id}>{x.nome || x.modello}</option>)}
+          </select>
+        </div>
+      )}
       {vista === 'riepilogo' && <PunteggioReale r={r} pct={a.base.pct} />}
       {vista === 'riepilogo' && <Riepilogo a={a} r={r} />}
       {vista === 'riepilogo' && <AltreDivisioni r={r} />}
