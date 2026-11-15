@@ -3,7 +3,7 @@ import { useRef, useState, type PointerEvent as PE } from 'react'
 import type { ElementoSchema, Schema, TipoElemento } from '../allenamento/schemi'
 
 const COL = {
-  carta: '#c9a77a', cartaBordo: '#8a6c45', ns: '#f4f4f2', acciaio: '#a7b0ba', acciaioBordo: '#6c7581',
+  carta: '#c9a77a', cartaBordo: '#8a6c45', ns: '#f4f4f2', acciaio: '#2f6fd6', acciaioBordo: '#173f80',
   tiratore: 'var(--accent)', muro: '#5b5b63', freccia: 'var(--gara)', linea: 'var(--fuoco)', tavolo: '#7a5a3a',
 }
 
@@ -67,17 +67,56 @@ function Elemento({ e, v, sel }: { e: ElementoSchema; v: Vista; sel: boolean }) 
       return <g style={evid}><Sagoma cx={x} cy={y} h={s} fill={COL.ns} stroke="#999" zone={false} /><text x={x} y={y + 3} textAnchor="middle" fontSize={8} fontWeight={800} fill="#c33">NS</text></g>
     case 'popper':
     case 'miniPopper': {
-      const r = e.t === 'popper' ? s * 0.32 : s * 0.24
+      // sagoma del popper IPSC: testa tonda, collo stretto, corpo che si allarga, base
+      const h = e.t === 'popper' ? s * 1.35 : s * 0.85
+      const top = y - h / 2
+      const rT = h * 0.17, collo = h * 0.07, base = h * 0.2
+      const yC = top + rT * 2
+      const corpo = `M${x - collo},${yC - rT * 0.25} L${x - base},${y + h / 2 - h * 0.08} L${x + base},${y + h / 2 - h * 0.08} L${x + collo},${yC - rT * 0.25} Z`
       return (
         <g style={evid}>
-          <rect x={x - r * 0.35} y={y - r * 0.2} width={r * 0.7} height={r * 1.6} fill={COL.acciaio} stroke={COL.acciaioBordo} />
-          <circle cx={x} cy={y - r * 0.6} r={r} fill={COL.acciaio} stroke={COL.acciaioBordo} />
-          {etichetta(r * 1.6 + 11)}
+          <path d={corpo} fill={COL.acciaio} stroke={COL.acciaioBordo} strokeWidth={1} />
+          <circle cx={x} cy={top + rT} r={rT} fill={COL.acciaio} stroke={COL.acciaioBordo} strokeWidth={1} />
+          <rect x={x - base * 1.15} y={y + h / 2 - h * 0.08} width={base * 2.3} height={h * 0.08} fill={COL.acciaioBordo} />
+          {e.id && <text x={x} y={y + h / 2 + 11} textAnchor="middle" fontSize={9.5} fontWeight={700} fill="var(--text)">{e.id}</text>}
         </g>
       )
     }
-    case 'piastra':
-      return <g style={evid}><circle cx={x} cy={y} r={s * 0.22} fill={COL.acciaio} stroke={COL.acciaioBordo} />{e.id && <text x={x} y={y + s * 0.22 + 11} textAnchor="middle" fontSize={9} fill="var(--muted)">{e.id}</text>}</g>
+    case 'piastra': {
+      const r = s * 0.24
+      const asta = e.variante !== 'terra'
+      return (
+        <g style={evid}>
+          {asta
+            ? <line x1={x} y1={y + r} x2={x} y2={y + r + s * 0.75} stroke={COL.acciaioBordo} strokeWidth={2} />
+            : <line x1={x - r * 1.2} y1={y + r + 2} x2={x + r * 1.2} y2={y + r + 2} stroke={COL.acciaioBordo} strokeWidth={2.5} />}
+          <circle cx={x} cy={y} r={r} fill={COL.acciaio} stroke={COL.acciaioBordo} strokeWidth={1} />
+          {e.id && <text x={x} y={y + (asta ? r + s * 0.75 + 10 : r + 13)} textAnchor="middle" fontSize={9} fill="var(--muted)">{e.id}</text>}
+        </g>
+      )
+    }
+    case 'bobber': {
+      // perno in basso, braccio che oscilla: l'arco con le frecce indica il movimento
+      const L = s * 1.25
+      const piatto = e.variante === 'piatto'
+      const passata = e.variante === 'passata'
+      const ang = (g: number) => [x + Math.sin((g * Math.PI) / 180) * L, y - Math.cos((g * Math.PI) / 180) * L]
+      const [ax, ay] = ang(-55), [bx, by] = ang(55)
+      const [tx, ty] = ang(25)
+      return (
+        <g style={evid}>
+          <path d={`M${ax},${ay} A${L},${L} 0 0 1 ${bx},${by}`} fill="none" stroke="var(--gara)" strokeWidth={1.4} strokeDasharray="4 3" markerEnd="url(#punta)" markerStart="url(#punta)" />
+          <line x1={x} y1={y} x2={tx} y2={ty} stroke={COL.acciaioBordo} strokeWidth={2.5} />
+          <circle cx={x} cy={y} r={3.5} fill="var(--text)" />
+          {piatto
+            ? <circle cx={tx} cy={ty} r={s * 0.3} fill={COL.acciaio} stroke={COL.acciaioBordo} />
+            : <Sagoma cx={tx} cy={ty} h={s} fill={COL.carta} stroke={COL.cartaBordo} />}
+          {passata && <rect x={x - L * 1.05} y={y - L * 1.2} width={L * 0.95} height={L * 1.15} fill="#5b5b63" opacity={0.9} rx={2} />}
+          {e.id && <text x={x} y={y + 14} textAnchor="middle" fontSize={9.5} fontWeight={700} fill="var(--text)">{e.id}</text>}
+          {e.nota && <text x={tx + s * 0.6} y={ty - s * 0.4} fontSize={9.5} fill="var(--accent)">{e.nota}</text>}
+        </g>
+      )
+    }
     case 'tiratore': {
       const r = 9
       const dir = e.verso === 'indietro' ? 1 : -1
@@ -117,7 +156,7 @@ function Tela({ schema, v, sel, children, svgRef, onPointerDown, onPointerMove, 
   schema: Schema; v: Vista; sel?: number | null; children?: React.ReactNode; svgRef?: React.Ref<SVGSVGElement>
   onPointerDown?: (e: PE<SVGSVGElement>) => void; onPointerMove?: (e: PE<SVGSVGElement>) => void; onPointerUp?: (e: PE<SVGSVGElement>) => void; etichetta: string
 }) {
-  const tutte = [...new Set(schema.elementi.filter((e) => ['carta', 'mini', 'popper', 'miniPopper', 'piastra'].includes(e.t) && e.y > 0).map((e) => Math.round(e.y * 2) / 2))].sort((a, b) => a - b)
+  const tutte = [...new Set(schema.elementi.filter((e) => ['carta', 'mini', 'popper', 'miniPopper', 'piastra', 'bobber'].includes(e.t) && e.y > 0).map((e) => Math.round(e.y * 2) / 2))].sort((a, b) => a - b)
   // niente etichette sovrapposte
   const distanze = tutte.filter((d, i) => i === 0 || (d - tutte[i - 1]) * v.sy >= 14)
   return (
@@ -151,13 +190,21 @@ export function DrillSchema({ schema, titolo }: { schema: Schema; titolo: string
 
 /* ---------- Editor per i drill personali ---------- */
 
-const STRUMENTI: { t: TipoElemento | 'sposta'; label: string }[] = [
+type Strumento = { t: TipoElemento | 'sposta'; label: string; variante?: string }
+const STRUMENTI: Strumento[] = [
   { t: 'sposta', label: 'Sposta' }, { t: 'carta', label: 'Carta' }, { t: 'mini', label: 'Mini' }, { t: 'noshoot', label: 'No-shoot' },
-  { t: 'popper', label: 'Popper' }, { t: 'miniPopper', label: 'Mini popper' }, { t: 'piastra', label: 'Piastra' }, { t: 'tiratore', label: 'Tiratore' },
-  { t: 'box', label: 'Box' }, { t: 'tavolo', label: 'Tavolo' }, { t: 'barile', label: 'Barile' }, { t: 'muro', label: 'Parete' }, { t: 'linea', label: 'Fault line' }, { t: 'freccia', label: 'Movimento' },
+  { t: 'popper', label: 'Popper' }, { t: 'miniPopper', label: 'Mini popper' },
+  { t: 'piastra', label: 'Piastra su asta', variante: 'asta' }, { t: 'piastra', label: 'Piastra a terra', variante: 'terra' },
+  { t: 'bobber', label: 'Bobber laterale', variante: 'laterale' }, { t: 'bobber', label: 'Bobber in passata', variante: 'passata' }, { t: 'bobber', label: 'Bobber con piatto', variante: 'piatto' },
+  { t: 'tiratore', label: 'Tiratore' }, { t: 'box', label: 'Box' }, { t: 'tavolo', label: 'Tavolo' }, { t: 'barile', label: 'Barile' },
+  { t: 'muro', label: 'Parete' }, { t: 'linea', label: 'Fault line' }, { t: 'freccia', label: 'Movimento' },
 ]
+const chiave = (x: Strumento) => `${x.t}${x.variante ? `:${x.variante}` : ''}`
 
 const arrot = (n: number) => Math.round(n * 4) / 4
+const CAMPI = [
+  { nome: '12 × 12 m', l: 12, p: 12 }, { nome: '12 × 25 m', l: 12, p: 25 }, { nome: '20 × 25 m', l: 20, p: 25 }, { nome: '30 × 30 m', l: 30, p: 30 },
+]
 
 export type Mappatore = (x: number, y: number) => [number, number]
 
@@ -170,15 +217,20 @@ export function EditorSchema({ schema, onChange, campo, extra, onSelect, strumen
   onSelect?: (i: number | null) => void
   strumenti?: (TipoElemento | 'sposta')[]
 }) {
-  const [strumento, setStrumento] = useState<TipoElemento | 'sposta'>('carta')
+  const [strumentoK, setStrumentoK] = useState('carta')
+  const strumentoSel = STRUMENTI.find((x) => chiave(x) === strumentoK) ?? STRUMENTI[1]
+  const strumento = strumentoSel.t
   const [sel, setSelInt] = useState<number | null>(null)
   const setSel = (i: number | null) => { setSelInt(i); onSelect?.(i) }
-  const [prof, setProf] = useState(() => Math.max(10, ...schema.elementi.map((e) => Math.max(e.y, e.y2 ?? 0) + 2)) > 12 ? 25 : 12)
+  const [dimInt, setDim] = useState(() => {
+    const maxY = Math.max(10, ...schema.elementi.map((e) => Math.max(e.y, e.y2 ?? 0) + 2))
+    const maxX = Math.max(5, ...schema.elementi.map((e) => Math.max(Math.abs(e.x), Math.abs(e.x2 ?? 0)) + 1))
+    return CAMPI.find((c) => c.l / 2 >= maxX && c.p >= maxY) ?? CAMPI[CAMPI.length - 1]
+  })
+  const dim = campo ? { l: campo.larghezza, p: campo.profondita } : dimInt
   const svg = useRef<SVGSVGElement>(null)
   const trascina = useRef<{ i: number; dx: number; dy: number; linea?: boolean } | null>(null)
-  const v = calcolaVista(schema.elementi, campo
-    ? { minX: -campo.larghezza / 2, maxX: campo.larghezza / 2, minY: -3, maxY: campo.profondita }
-    : { minX: -6, maxX: 6, minY: -5, maxY: prof }, campo ? 560 : 400)
+  const v = calcolaVista(schema.elementi, { minX: -dim.l / 2, maxX: dim.l / 2, minY: dim.p > 12 ? -3 : -5, maxY: dim.p }, dim.p > 12 ? 560 : 400)
   const mappa: Mappatore = (x, y) => [px(v, x), py(v, y)]
   const el = schema.elementi
 
@@ -209,7 +261,8 @@ export function EditorSchema({ schema, onChange, campo, extra, onSelect, strumen
       if (i >= 0) trascina.current = { i, dx: p.x - el[i].x, dy: p.y - el[i].y }
       return
     }
-    const nuovo: ElementoSchema = { t: strumento, x: arrot(p.x), y: arrot(p.y) }
+    const nuovo: ElementoSchema = { t: strumento, x: arrot(p.x), y: arrot(p.y), ...(strumentoSel.variante ? { variante: strumentoSel.variante } : {}) }
+    if (strumento === 'bobber') { nuovo.id = `B${el.filter((x) => x.t === 'bobber').length + 1}`; nuovo.nota = strumentoSel.variante === 'piatto' ? '×1' : '×2' }
     if (LINEARI.includes(strumento)) { nuovo.x2 = nuovo.x; nuovo.y2 = nuovo.y }
     if (['carta', 'mini'].includes(strumento)) {
       nuovo.id = `T${el.filter((x) => x.t === 'carta' || x.t === 'mini').length + 1}`
@@ -251,7 +304,7 @@ export function EditorSchema({ schema, onChange, campo, extra, onSelect, strumen
     <div className="form" style={{ gap: 10 }}>
       <div className="chips">
         {STRUMENTI.filter((x) => !strumenti || strumenti.includes(x.t)).map((x) => (
-          <button type="button" key={x.t} className={`chip-giorno${strumento === x.t ? ' attivo' : ''}`} style={{ padding: '0 10px', minHeight: 34 }} onClick={() => setStrumento(x.t)}>{x.label}</button>
+          <button type="button" key={chiave(x)} className={`chip-giorno${strumentoK === chiave(x) ? ' attivo' : ''}`} style={{ padding: '0 10px', minHeight: 34 }} onClick={() => setStrumentoK(chiave(x))}>{x.label}</button>
         ))}
       </div>
       <p className="prose" style={{ margin: 0, fontSize: 12 }}>
@@ -260,20 +313,20 @@ export function EditorSchema({ schema, onChange, campo, extra, onSelect, strumen
       <Tela schema={schema} v={v} sel={sel} svgRef={svg} onPointerDown={down} onPointerMove={move} onPointerUp={up} etichetta="Editor del disegno">{extra?.(mappa)}</Tela>
       {!campo && (
         <div className="row" style={{ fontSize: 13 }}>
-          <span className="label">Profondità</span>
-          {[12, 25].map((p) => <button type="button" key={p} className={`chip-giorno${prof === p ? ' attivo' : ''}`} style={{ minHeight: 30 }} onClick={() => setProf(p)}>{p} m</button>)}
+          <span className="label">Campo</span>
+          {CAMPI.map((c) => <button type="button" key={c.nome} className={`chip-giorno${dim.l === c.l && dim.p === c.p ? ' attivo' : ''}`} style={{ minHeight: 30, padding: '0 10px' }} onClick={() => setDim(c)}>{c.nome}</button>)}
         </div>
       )}
       {s && sel !== null && (
         <div className="card" style={{ background: 'var(--bg)', padding: 12 }}>
           <div className="fields-3">
-            {['carta', 'mini', 'popper', 'miniPopper', 'piastra', 'box', 'noshoot'].includes(s.t) && (
+            {['carta', 'mini', 'popper', 'miniPopper', 'piastra', 'box', 'noshoot', 'bobber'].includes(s.t) && (
               <div className="field"><label htmlFor="se-id">Nome</label><input id="se-id" className="input" value={s.id ?? ''} onChange={(e) => aggiorna(sel, { id: e.target.value })} /></div>
             )}
-            {['carta', 'mini', 'popper', 'miniPopper'].includes(s.t) && (
+            {['carta', 'mini', 'popper', 'miniPopper', 'bobber'].includes(s.t) && (
               <div className="field"><label htmlFor="se-nota">Colpi / nota</label><input id="se-nota" className="input" value={s.nota ?? ''} onChange={(e) => aggiorna(sel, { nota: e.target.value })} /></div>
             )}
-            {!LINEARI.includes(s.t) && campo && (
+            {!LINEARI.includes(s.t) && (
               <div className="field"><label htmlFor="se-x">Laterale (m)</label><input id="se-x" className="input" inputMode="decimal" value={String(s.x).replace('.', ',')} onChange={(e) => { const n = Number(e.target.value.replace(',', '.')); if (Number.isFinite(n)) aggiorna(sel, { x: n }) }} /></div>
             )}
             {!LINEARI.includes(s.t) && (
@@ -281,6 +334,11 @@ export function EditorSchema({ schema, onChange, campo, extra, onSelect, strumen
             )}
           </div>
           <div className="row" style={{ marginTop: 8 }}>
+            {s.t === 'piastra' && (
+              <button type="button" className="btn" style={{ minHeight: 36 }} onClick={() => aggiorna(sel, { variante: s.variante === 'terra' ? 'asta' : 'terra' })}>
+                {s.variante === 'terra' ? 'A terra' : 'Su asta da 1 m'}
+              </button>
+            )}
             {s.t === 'tiratore' && (
               <button type="button" className="btn" style={{ minHeight: 36 }} onClick={() => aggiorna(sel, { verso: s.verso === 'indietro' ? 'avanti' : 'indietro' })}>
                 {s.verso === 'indietro' ? 'Di spalle' : 'Fronte ai bersagli'}

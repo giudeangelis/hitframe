@@ -1,5 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Plus, Sparkles, Timer as TimerIcon, Trophy } from 'lucide-react'
+import { Plus, Sparkles, Star, Timer as TimerIcon, Trophy } from 'lucide-react'
+import { usePreferiti } from '../lib/preferiti'
+import { migraStageDesigner } from '../stage/migrazione'
+import { useEffect } from 'react'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import DrillForm from '../components/DrillForm'
@@ -19,6 +22,9 @@ export default function Allenamento() {
   const [cat, setCat] = useState<string>('')
   const [nuovoDrill, setNuovoDrill] = useState(false)
   const [nuovaProva, setNuovaProva] = useState(false)
+  const [soloPreferiti, setSoloPreferiti] = useState(false)
+  const { preferiti, isPreferito, commuta } = usePreferiti()
+  useEffect(() => { void migraStageDesigner() }, [])
 
   const personali = useLiveQuery(() => db.drillPersonali.toArray()) ?? []
   const prove = useLiveQuery(() => db.prove.orderBy('creato').reverse().toArray()) ?? []
@@ -51,7 +57,7 @@ export default function Allenamento() {
     return m
   }, [prove])
 
-  const filtrati = elenco.filter((d) => (modo === 'tutti' || d.modalita === modo) && (!cat || d.categoria === cat))
+  const filtrati = elenco.filter((d) => (modo === 'tutti' || d.modalita === modo) && (!cat || d.categoria === cat) && (!soloPreferiti || preferiti.includes(d.id)))
   const nomeDrill = (id: string) => elenco.find((d) => d.id === id)?.nome ?? 'Drill eliminato'
 
   const storicoPerGiorno = useMemo(() => {
@@ -95,16 +101,20 @@ export default function Allenamento() {
           <div className="row">
             <Segmented label="Modalità" value={modo} onChange={setModo}
               options={[{ value: 'tutti', label: 'Tutti' }, { value: 'fuoco', label: 'A fuoco' }, { value: 'bianco', label: 'In bianco' }]} />
+            <button className={`chip-giorno${soloPreferiti ? ' attivo' : ''}`} style={{ padding: '0 12px', minHeight: 40 }} aria-pressed={soloPreferiti} onClick={() => setSoloPreferiti(!soloPreferiti)}>
+              <Star size={15} style={{ verticalAlign: -2, marginRight: 4 }} fill={soloPreferiti ? 'currentColor' : 'none'} />Preferiti{preferiti.length ? ` (${preferiti.length})` : ''}
+            </button>
             <select className="select" style={{ width: 'auto', flex: 1 }} aria-label="Categoria" value={cat} onChange={(e) => setCat(e.target.value)}>
               <option value="">Tutte le categorie</option>
               {CATEGORIE_DRILL.map((c) => <option key={c}>{c}</option>)}
             </select>
           </div>
 
+          {soloPreferiti && filtrati.length === 0 && <div className="card"><Empty icon={<Star size={26} />} text="Nessun preferito: apri un drill e tocca la stella in alto." /></div>}
           <div className="drill-grid">
-            {filtrati.map((d) => <DrillCard key={d.id} d={d} prove={perDrill.get(d.id) ?? []} obiettivo={profilo ? obiettivoPer(d, profilo.classe) : null} />)}
+            {filtrati.map((d) => <DrillCard key={d.id} d={d} prove={perDrill.get(d.id) ?? []} obiettivo={profilo ? obiettivoPer(d, profilo.classe) : null} preferito={isPreferito(d.id)} onPreferito={() => commuta(d.id)} />)}
           </div>
-          <button className="btn" style={{ alignSelf: 'flex-start' }} onClick={() => setNuovoDrill(true)}><Plus size={18} /> Crea un drill personale</button>
+          <button className="btn primary" style={{ alignSelf: 'flex-start' }} onClick={() => setNuovoDrill(true)}><Plus size={18} /> Crea drill o stage</button>
         </>
       ) : prove.length === 0 ? (
         <div className="card">
@@ -143,7 +153,7 @@ export default function Allenamento() {
   )
 }
 
-function DrillCard({ d, prove, obiettivo, compatta }: { d: Drill; prove: Prova[]; obiettivo: number | null; compatta?: boolean }) {
+function DrillCard({ d, prove, obiettivo, compatta, preferito, onPreferito }: { d: Drill; prove: Prova[]; obiettivo: number | null; compatta?: boolean; preferito?: boolean; onPreferito?: () => void }) {
   const st = statistiche(prove)
   const raggiunto = st.migliore !== null && obiettivo !== null && st.migliore <= obiettivo
   return (
@@ -152,6 +162,12 @@ function DrillCard({ d, prove, obiettivo, compatta }: { d: Drill; prove: Prova[]
         <span className={`dot ${d.modalita}`} aria-hidden="true" />
         <span className="meta" style={{ flex: 1 }}>{d.categoria}{d.personale ? ' · personale' : ''}</span>
         {raggiunto && <Trophy size={16} color="var(--accent)" aria-label="Obiettivo raggiunto" />}
+        {onPreferito && (
+          <button className="btn icon ghost" style={{ minHeight: 28, width: 28, height: 28, margin: '-6px -6px -6px 0' }} aria-label={preferito ? 'Togli dai preferiti' : 'Aggiungi ai preferiti'} aria-pressed={preferito}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPreferito() }}>
+            <Star size={16} color={preferito ? 'var(--accent)' : 'var(--faint)'} fill={preferito ? 'var(--accent)' : 'none'} />
+          </button>
+        )}
       </div>
       <div className="t">{d.nome}</div>
       {!compatta && <div className="s">{d.distanza} · {d.colpi} {d.modalita === 'bianco' ? 'azioni' : 'colpi'}</div>}

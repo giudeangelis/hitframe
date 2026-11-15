@@ -1,9 +1,13 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowLeft, Pencil, Play, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Pencil, Play, Plus, Share2, Star, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import DrillForm from '../components/DrillForm'
 import DrillIstruzioni from '../components/DrillIstruzioni'
+import DrillSimulazione from '../components/DrillSimulazione'
+import DrillEsporta from '../components/DrillEsporta'
+import { usePreferiti } from '../lib/preferiti'
+import { ISTRUZIONI } from '../allenamento/schemi'
 import ProvaForm from '../components/ProvaForm'
 import { Empty, useToast } from '../components/ui'
 import { CLASSE_A_OBIETTIVO, obiettivoPer, type ClasseObiettivo } from '../allenamento/drills'
@@ -39,6 +43,8 @@ export default function DrillDettaglio() {
   const prove = useLiveQuery(() => db.prove.where('drillId').equals(id).reverse().sortBy('creato'), [id]) ?? []
   const [prova, setProva] = useState(false)
   const [modifica, setModifica] = useState(false)
+  const [esporta, setEsporta] = useState(false)
+  const { isPreferito, commuta } = usePreferiti()
 
   if (!personali || !profilo) return <div className="page" />
   const d = trovaDrill(id, personali)
@@ -63,7 +69,13 @@ export default function DrillDettaglio() {
           <h1>{d.nome}</h1>
           <div className="sub">{d.categoria} · {d.modalita === 'fuoco' ? 'a fuoco' : 'in bianco'}{d.personale ? ' · personale' : ''}</div>
         </div>
-        {personale && <button className="btn" onClick={() => setModifica(true)}><Pencil size={16} /> Modifica</button>}
+        <div className="row">
+          <button className="btn icon ghost" aria-label={isPreferito(d.id) ? 'Togli dai preferiti' : 'Aggiungi ai preferiti'} aria-pressed={isPreferito(d.id)} onClick={() => commuta(d.id)}>
+            <Star size={20} color={isPreferito(d.id) ? 'var(--accent)' : undefined} fill={isPreferito(d.id) ? 'var(--accent)' : 'none'} />
+          </button>
+          <button className="btn" onClick={() => setEsporta(true)}><Share2 size={16} /> Esporta</button>
+          {personale && <button className="btn" onClick={() => setModifica(true)}><Pencil size={16} /> Modifica</button>}
+        </div>
       </header>
 
       <div className="row">
@@ -82,6 +94,7 @@ export default function DrillDettaglio() {
       </section>
 
       <DrillIstruzioni d={d} personale={personale} />
+      {d.modalita === 'fuoco' && <DrillSimulazione schema={personale ? personale.schema : ISTRUZIONI[d.id]?.schema} />}
 
       {!d.personale && (
         <section className="card">
@@ -136,6 +149,7 @@ export default function DrillDettaglio() {
 
       {prova && <ProvaForm drillId={d.id} onClose={() => setProva(false)} />}
       {modifica && personale && <DrillForm drill={personale} onClose={() => setModifica(false)} />}
+      {esporta && <DrillEsporta d={d} personale={personale} onClose={() => setEsporta(false)} />}
     </div>
   )
 }

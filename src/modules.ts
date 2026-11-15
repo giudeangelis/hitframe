@@ -2,7 +2,6 @@ import {
   BarChart3,
   BookOpen,
   CalendarDays,
-  Crosshair,
   FileSearch,
   Home,
   ListChecks,
@@ -35,10 +34,9 @@ export const AREE: Area[] = [
     sezioni: [
       { path: '/allenamento', label: 'Drill', icon: Target },
       { path: '/sessioni', label: 'Sessioni', icon: ListChecks },
-      { path: '/stage-designer', label: 'Stage', icon: Crosshair },
       { path: '/timer', label: 'Timer', icon: Timer },
     ],
-    prefissi: ['/allenamento', '/sessioni', '/stage-designer', '/timer'],
+    prefissi: ['/allenamento', '/sessioni', '/timer'],
   },
   {
     id: 'gare', path: '/gare', label: 'Gare', icon: Trophy,

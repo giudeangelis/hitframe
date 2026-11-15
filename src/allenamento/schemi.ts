@@ -3,7 +3,7 @@
  * Coordinate in metri: x laterale (negativo a sinistra), y verso i bersagli (0 = linea del tiratore).
  */
 
-export type TipoElemento = 'carta' | 'mini' | 'popper' | 'miniPopper' | 'piastra' | 'noshoot' | 'tiratore' | 'box' | 'tavolo' | 'muro' | 'freccia' | 'linea' | 'barile'
+export type TipoElemento = 'carta' | 'mini' | 'popper' | 'miniPopper' | 'piastra' | 'noshoot' | 'tiratore' | 'box' | 'tavolo' | 'muro' | 'freccia' | 'linea' | 'barile' | 'bobber'
 
 export interface ElementoSchema {
   t: TipoElemento
@@ -15,6 +15,8 @@ export interface ElementoSchema {
   id?: string
   /** nota breve sul bersaglio, es. "×2", "1° e 4°" */
   nota?: string
+  /** piastra: 'asta' (su asta da 1 m) o 'terra'; bobber: 'laterale', 'passata', 'piatto' */
+  variante?: string
   /** tiratore: verso dove guarda all'inizio */
   verso?: 'avanti' | 'indietro'
 }

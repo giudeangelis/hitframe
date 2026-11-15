@@ -6,12 +6,12 @@ import type { ElementoSchema, Schema } from '../allenamento/schemi'
 import type { MappaStage, TipoBersaglio } from '../analisi/mappa'
 import type { StageLetto } from '../analisi/tipi'
 
-export const BERSAGLI = ['carta', 'mini', 'popper', 'miniPopper', 'piastra'] as const
+export const BERSAGLI = ['carta', 'mini', 'popper', 'miniPopper', 'piastra', 'bobber'] as const
 export const isBersaglio = (e: ElementoSchema) => (BERSAGLI as readonly string[]).includes(e.t)
 export const isPosizione = (e: ElementoSchema) => e.t === 'box' || e.t === 'tiratore'
 
 export function colpi(s: Schema) {
-  return s.elementi.reduce((a, e) => a + (e.t === 'carta' || e.t === 'mini' ? 2 : isBersaglio(e) ? 1 : 0), 0)
+  return s.elementi.reduce((a, e) => a + (e.t === 'carta' || e.t === 'mini' || (e.t === 'bobber' && e.variante !== 'piatto') ? 2 : isBersaglio(e) ? 1 : 0), 0)
 }
 
 export function corso(n: number): { tipo: 'Short' | 'Medium' | 'Long'; oltre: boolean } {
@@ -60,7 +60,7 @@ export function versoMappa(s: Schema): { mappa: MappaStage; stage: StageLetto } 
   const nx = (x: number) => (x - minX) / W, ny = (y: number) => 1 - (y - minY) / H
   const ids = new Map<ElementoSchema, string>()
   let k = 0
-  const pref: Record<string, string> = { carta: 'T', mini: 'T', popper: 'PP', miniPopper: 'MP', piastra: 'PL' }
+  const pref: Record<string, string> = { carta: 'T', mini: 'T', popper: 'PP', miniPopper: 'MP', piastra: 'PL', bobber: 'B' }
   const usati = new Set<string>()
   for (const b of bers) {
     let id = b.t === 'noshoot' ? `NS${++k}` : (b.id || '').toUpperCase().replace(/\s+/g, '')
@@ -75,7 +75,8 @@ export function versoMappa(s: Schema): { mappa: MappaStage; stage: StageLetto } 
     const visto = pos.filter((p) => isBersaglio(b) && vede(s, p, b))
     const d = visto.length ? Math.min(...visto.map((p) => Math.hypot(p.x - b.x, p.y - b.y))) : Math.hypot(start.x - b.x, start.y - b.y)
     const ns = bers.some((n) => n.t === 'noshoot' && Math.abs(n.x - b.x) < 0.6 && Math.abs(n.y - b.y) < 0.8)
-    return { id: ids.get(b)!, tipo: b.t as TipoBersaglio, x: nx(b.x), y: ny(b.y), distanza: Math.max(3, Math.round(d * 2) / 2), parziale: ns, mobile: false, attiva: [] as string[] }
+    const tipo: TipoBersaglio = b.t === 'bobber' ? (b.variante === 'piatto' ? 'piastra' : 'carta') : (b.t as TipoBersaglio)
+    return { id: ids.get(b)!, tipo, x: nx(b.x), y: ny(b.y), distanza: Math.max(3, Math.round(d * 2) / 2), parziale: ns || b.variante === 'passata', mobile: b.t === 'bobber', attiva: [] as string[] }
   })
   const n = colpi(s)
   const conta = (t: string) => bers.filter((b) => b.t === t).length
@@ -85,9 +86,9 @@ export function versoMappa(s: Schema): { mappa: MappaStage; stage: StageLetto } 
   }
   const stage = {
     numero: 1, pagina: 1, lingua: 'it', tipo: corso(n).tipo, colpi: n, puntiMax: n * 5, segnalePartenza: 'Audio',
-    bersagli: { carta: conta('carta'), miniCarta: conta('mini'), popper: conta('popper'), miniPopper: conta('miniPopper'), piastre: conta('piastra'), noShoot: conta('noshoot') },
+    bersagli: { carta: conta('carta') + bers.filter((b) => b.t === 'bobber' && b.variante !== 'piatto').length, miniCarta: conta('mini'), popper: conta('popper'), miniPopper: conta('miniPopper'), piastre: conta('piastra') + bers.filter((b) => b.t === 'bobber' && b.variante === 'piatto').length, noShoot: conta('noshoot') },
     posizionePartenza: '', prontoTiratore: '', prontoArma: '', procedura: '', note: '', etichetteDisegno: [], tabellaTopY: 0,
-    flag: { manoForte: false, manoDebole: false, mobili: false, armaSuTavolo: el.some((e) => e.t === 'tavolo'), armaScarica: false, colpoNonCamerato: false, partenzaGirato: start.verso === 'indietro', seduto: false, ricaricaObbligatoria: false, partenzaLibera: false },
+    flag: { manoForte: false, manoDebole: false, mobili: el.some((e) => e.t === 'bobber'), armaSuTavolo: el.some((e) => e.t === 'tavolo'), armaScarica: false, colpoNonCamerato: false, partenzaGirato: start.verso === 'indietro', seduto: false, ricaricaObbligatoria: false, partenzaLibera: false },
     attivazioni: [],
   } as StageLetto
   return { mappa, stage }

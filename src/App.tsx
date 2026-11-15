@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { HashRouter, Route, Routes } from 'react-router-dom'
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import { ToastProvider } from './components/ui'
 import Calendario from './pages/Calendario'
@@ -22,7 +22,6 @@ const AnalisiDettaglio = lazy(() => import('./pages/AnalisiDettaglio'))
 const StudioStage = lazy(() => import('./pages/StudioStage'))
 const Risultati = lazy(() => import('./pages/Risultati'))
 const Statistiche = lazy(() => import('./pages/Statistiche'))
-const StageDesigner = lazy(() => import('./pages/StageDesigner'))
 const RisultatoDettaglio = lazy(() => import('./pages/RisultatoDettaglio'))
 
 // HashRouter: funziona offline e su GitHub Pages senza configurazioni del server
@@ -42,8 +41,7 @@ export default function App() {
             <Route path="timer" element={<Timer />} />
             <Route path="sessioni" element={<Sessioni />} />
             <Route path="gare" element={<Gare />} />
-            <Route path="stage-designer" element={<Suspense fallback={<div className="page" />}><StageDesigner /></Suspense>} />
-            <Route path="stage-designer/:id" element={<Suspense fallback={<div className="page" />}><StageDesigner /></Suspense>} />
+            <Route path="stage-designer/*" element={<Navigate to="/allenamento" replace />} />
             <Route path="statistiche" element={<Suspense fallback={<div className="page" />}><Statistiche /></Suspense>} />
             <Route path="risultati" element={<Suspense fallback={<div className="page" />}><Risultati /></Suspense>} />
             <Route path="risultati/:id" element={<Suspense fallback={<div className="page" />}><RisultatoDettaglio /></Suspense>} />

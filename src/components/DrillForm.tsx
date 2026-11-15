@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CATEGORIE_DRILL } from '../allenamento/drills'
 import { EditorSchema } from './DrillSchema'
+import { colpi as contaColpi, corso, isBersaglio, isPosizione, vede } from '../stage/geometria'
 import { db, nowIso } from '../db/db'
 import type { DrillPersonale } from '../db/types'
 import { numOrNull, Segmented, Sheet, useToast } from './ui'
@@ -13,6 +14,7 @@ export default function DrillForm({ drill, onClose }: { drill?: DrillPersonale; 
   })
   const [passiTxt, setPassiTxt] = useState((drill?.passi ?? []).join('\n'))
   const [attTxt, setAttTxt] = useState((drill?.attenzione ?? []).join('\n'))
+  const [selEl, setSelEl] = useState<number | null>(null)
   const [obTxt, setObTxt] = useState(drill?.obiettivo ? String(drill.obiettivo).replace('.', ',') : '')
   const [conferma, setConferma] = useState(false)
   const set = <K extends keyof DrillPersonale>(k: K, v: DrillPersonale[K]) => setD((p) => ({ ...p, [k]: v }))
@@ -79,7 +81,29 @@ export default function DrillForm({ drill, onClose }: { drill?: DrillPersonale; 
           <div className="form" style={{ marginTop: 10 }}>
             {drill?.stage
               ? <p className="prose" style={{ margin: 0 }}>Il disegno viene dallo studio dello stage {drill.stage.numero}.</p>
-              : <EditorSchema schema={d.schema ?? { elementi: [] }} onChange={(sc) => set('schema', sc)} />}
+              : (() => {
+                const sc = d.schema ?? { elementi: [] }
+                const pos = selEl !== null && sc.elementi[selEl] && isPosizione(sc.elementi[selEl]) ? sc.elementi[selEl] : null
+                const n = contaColpi(sc)
+                return (
+                  <>
+                    <EditorSchema schema={sc} onChange={(x) => set('schema', x)} onSelect={setSelEl}
+                      extra={(m) => pos && (
+                        <g pointerEvents="none">
+                          {sc.elementi.filter(isBersaglio).map((b, i) => {
+                            const ok = vede(sc, pos, b)
+                            const [x1, y1] = m(pos.x, pos.y), [x2, y2] = m(b.x, b.y)
+                            return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={ok ? 'var(--ok)' : 'var(--fuoco)'} strokeWidth={ok ? 1.5 : 1} strokeDasharray={ok ? undefined : '3 4'} opacity={0.8} />
+                          })}
+                        </g>
+                      )} />
+                    <p className="prose" style={{ margin: 0, fontSize: 12 }}>
+                      {n} colpi · {corso(n).tipo}{corso(n).oltre ? ' (oltre i 32 di un long course)' : ''}. Con Sposta tocca un box o il tiratore: in verde i bersagli visibili, in rosso quelli coperti da pareti e barili.
+                      {n !== d.colpi && d.modalita === 'fuoco' && <> <button type="button" className="btn ghost" style={{ minHeight: 28, padding: '0 8px' }} onClick={() => set('colpi', n)}>Usa {n} colpi</button></>}
+                    </p>
+                  </>
+                )
+              })()}
             <div className="field">
               <label htmlFor="dr-all">Allestimento</label>
               <input id="dr-all" className="input" value={d.allestimento ?? ''} onChange={(e) => set('allestimento', e.target.value)} placeholder="Cosa preparare: bersagli, distanze, tavolo…" />
