@@ -1,6 +1,8 @@
 import {
   BarChart3,
   BookOpen,
+  Brain,
+  Compass,
   CalendarDays,
   FileSearch,
   Home,
@@ -34,9 +36,10 @@ export const AREE: Area[] = [
     sezioni: [
       { path: '/allenamento', label: 'Drill', icon: Target },
       { path: '/sessioni', label: 'Sessioni', icon: ListChecks },
+      { path: '/mente', label: 'Mente', icon: Brain },
       { path: '/timer', label: 'Timer', icon: Timer },
     ],
-    prefissi: ['/allenamento', '/sessioni', '/timer'],
+    prefissi: ['/allenamento', '/sessioni', '/mente', '/timer'],
   },
   {
     id: 'gare', path: '/gare', label: 'Gare', icon: Trophy,
@@ -51,9 +54,10 @@ export const AREE: Area[] = [
     id: 'progressi', path: '/statistiche', label: 'Progressi', icon: BarChart3,
     sezioni: [
       { path: '/statistiche', label: 'Statistiche', icon: BarChart3 },
-      { path: '/profilo', label: 'Atleta e abilità', icon: User },
+      { path: '/quadro', label: 'Il mio quadro', icon: Compass },
+      { path: '/profilo', label: 'Atleta e obiettivi', icon: User },
     ],
-    prefissi: ['/statistiche', '/profilo'],
+    prefissi: ['/statistiche', '/quadro', '/profilo'],
   },
   {
     id: 'materiale', path: '/attrezzatura', label: 'Materiale', icon: Wrench,

@@ -89,7 +89,28 @@ export interface Profilo {
   abilita?: Partial<Record<string, number>>
   storicoAbilita?: { data: string; valori: Partial<Record<string, number>> }[]
   tempi: TempiPersonali
+  /** Obiettivi a breve e lungo termine */
+  obiettivi?: Obiettivo[]
   aggiornato: string // ISO
+}
+
+export type TipoObiettivo = 'media' | 'reale' | 'evento' | 'libero'
+export interface Tappa { testo: string; fatto: boolean }
+export interface Obiettivo {
+  id: string
+  titolo: string
+  orizzonte: 'breve' | 'lungo'
+  /** Entro quando (YYYY-MM-DD) */
+  entro: string
+  tipo: TipoObiettivo
+  /** Fascia di percentuale (media) o di punteggio reale da tenere */
+  min?: number
+  max?: number
+  /** Classe collegata, es. "Master" da confermare */
+  classe?: string
+  tappe: Tappa[]
+  note: string
+  creato: string
 }
 
 export const TEMPI_DEFAULT: TempiPersonali = {

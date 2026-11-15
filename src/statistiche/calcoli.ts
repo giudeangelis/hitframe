@@ -30,6 +30,7 @@ export interface PuntoGara {
   ns: number
   pe: number
   costoErrori: number // punti gara persi per mancati, no-shoot, procedure
+  puntiVincitore: number
   perCorso: Partial<Record<Corso, { pct: number; n: number }>>
 }
 
@@ -75,6 +76,7 @@ export function puntiGara(risultati: RisultatoGara[], analisi: AnalisiGara[]): P
       mancati100Top10: h10 ? (mi10 / h10) * 100 : 0,
       ns: a.tot.NS, pe: a.tot.PE,
       costoErrori: a.stages.reduce((x, s) => x + s.guadagnoErrori, 0),
+      puntiVincitore: a.vincitore.punti,
       perCorso,
     }
   })

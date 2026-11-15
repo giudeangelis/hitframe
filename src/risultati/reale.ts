@@ -137,3 +137,18 @@ export function descriviCampo(x: Reale): string {
   const lv = { altissimo: 'campo fortissimo', alto: 'campo forte', medio: 'campo di medio livello', basso: 'campo poco competitivo' }[x.livello]
   return `${lv[0].toUpperCase()}${lv.slice(1)}: ${comp}`
 }
+
+/** Punteggio reale di tutti i tiratori della gara (per confrontarsi con le classi). */
+export function realeTutti(r: RisultatoGara): { num: number; cls: string; indice: number }[] {
+  const rif = riferimenti(r)
+  const nStages = Object.keys(r.valoreStage).map(Number)
+  const tot = nStages.reduce((a, n) => a + r.valoreStage[n], 0) || 1
+  return r.concorrenti.map((c) => {
+    let s = 0
+    for (const n of nStages) {
+      const st = c.stages[n]
+      if (st && rif[n]) s += r.valoreStage[n] * Math.min(TETTO, st.hf / rif[n])
+    }
+    return { num: c.num, cls: c.cls, indice: (s / tot) * 100 }
+  })
+}

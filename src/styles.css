@@ -550,3 +550,25 @@ table.colpi th { font-family: var(--display); letter-spacing: 1.5px; text-transf
 .btn.avviso-triangolo { color: #f5c518; position: relative; flex-shrink: 0; }
 .btn.avviso-triangolo:hover { color: #ffd84a; }
 .avviso-numero { position: absolute; top: 4px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #f5c518; color: #1a1300; font-size: 10px; font-weight: 800; line-height: 16px; text-align: center; }
+
+/* ---------- 0.18 · Obiettivi, Quadro, Mente ---------- */
+.obiettivo { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; background: var(--surface-2); }
+.obiettivo .progresso { margin-top: 8px; }
+.obiettivo-righe { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+.obiettivo-righe.azioni { color: var(--text); }
+.obiettivo-tappe { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.tappa { display: flex; gap: 8px; align-items: flex-start; text-align: left; background: transparent; border: 0; color: var(--text); font: inherit; font-size: 14px; padding: 4px 0; cursor: pointer; }
+.tappa svg { flex-shrink: 0; margin-top: 2px; }
+.tappa.fatta span { color: var(--muted); text-decoration: line-through; }
+.chip { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 12.5px; cursor: pointer; }
+.chip:hover { border-color: var(--accent); }
+.frase-giorno { display: flex; gap: 12px; align-items: flex-start; background: var(--surface-2); }
+.frase-giorno svg { color: var(--accent); flex-shrink: 0; margin-top: 2px; }
+.frase-giorno p { margin: 0; font-family: var(--display); font-style: italic; font-weight: 700; font-size: 21px; line-height: 1.25; }
+.guida-mente { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 24px; text-align: center; }
+.guida-mente .kicker { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+.guida-chiudi { position: absolute; top: max(14px, env(safe-area-inset-top)); right: 14px; }
+.respiro { width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, rgba(229,234,30,.28), rgba(229,234,30,.06)); border: 3px solid var(--accent); display: grid; place-items: center; transition-property: transform; transition-timing-function: ease-in-out; transform: scale(.8); }
+.respiro span { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 64px; }
+.guida-testo { font-size: 20px; font-weight: 600; max-width: 460px; line-height: 1.4; margin: 0; min-height: 3em; }
+.commento-ai p { line-height: 1.55; }

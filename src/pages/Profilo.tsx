@@ -1,5 +1,6 @@
 import { RotateCcw, Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { SezioneObiettivi } from '../components/Obiettivi'
 import { QuestionarioAbilita, RiepilogoAbilita } from '../components/Abilita'
 import { numOrNull, PageHeader, Segmented, useToast } from '../components/ui'
 import { db, normalizzaProfilo, nowIso } from '../db/db'
@@ -98,7 +99,9 @@ export default function Profilo() {
         return
       }
     }
-    await db.profilo.put({ ...p, aggiornato: nowIso() })
+    // gli obiettivi si salvano a parte: non sovrascriverli con quelli letti all'apertura
+    const attuale = await db.profilo.get('me')
+    await db.profilo.put({ ...p, obiettivi: attuale?.obiettivi ?? p.obiettivi, aggiornato: nowIso() })
     setSporco(false)
     toast('Profilo salvato')
   }
@@ -116,6 +119,8 @@ export default function Profilo() {
         sub="I tuoi dati e i tuoi tempi: la base di ogni calcolo"
         actions={<button className="btn primary" onClick={salva} disabled={!sporco}><Save size={18} /> Salva</button>}
       />
+
+      <SezioneObiettivi />
 
       <section className="card form">
         <div className="card-title" style={{ marginBottom: 0 }}>Atleta</div>
