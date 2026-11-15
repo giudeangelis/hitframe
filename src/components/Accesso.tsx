@@ -82,14 +82,22 @@ export function SceltaDati({ nelCloud, suDispositivo, aggiornato, fatto }: {
         Nel tuo Google Drive ci sono già dati Hitframe ({elementi(nelCloud)}{quando ? `, salvati il ${quando}` : ''}).
         Anche su questo dispositivo ce ne sono ({elementi(suDispositivo)}).
       </p>
-      <button className="btn primary accesso-btn" disabled={!!occupato} onClick={() => vai('cloud')}>
-        {occupato === 'cloud' ? <Loader2 size={20} className="spin" /> : <CloudDownload size={20} />} Usa quelli del Google Drive
-      </button>
-      <p className="accesso-nota">Consigliato se hai già usato Hitframe su un altro dispositivo.</p>
-      <button className="btn accesso-btn" disabled={!!occupato} onClick={() => vai('dispositivo')}>
-        {occupato === 'dispositivo' ? <Loader2 size={20} className="spin" /> : <Smartphone size={20} />} Usa quelli di questo dispositivo
-      </button>
-      <p className="accesso-nota">Sostituisce i dati nel Drive anche per gli altri dispositivi.</p>
+      {(() => {
+        // consigliamo la parte con più dati: è quasi sempre quella "vera"
+        const consigliaCloud = nelCloud >= suDispositivo
+        const cloud = (
+          <button key="c" className={`btn accesso-btn${consigliaCloud ? ' primary' : ''}`} disabled={!!occupato} onClick={() => vai('cloud')}>
+            {occupato === 'cloud' ? <Loader2 size={20} className="spin" /> : <CloudDownload size={20} />} Usa quelli del Google Drive ({elementi(nelCloud)})
+          </button>
+        )
+        const disp = (
+          <button key="d" className={`btn accesso-btn${consigliaCloud ? '' : ' primary'}`} disabled={!!occupato} onClick={() => vai('dispositivo')}>
+            {occupato === 'dispositivo' ? <Loader2 size={20} className="spin" /> : <Smartphone size={20} />} Usa quelli di questo dispositivo ({elementi(suDispositivo)})
+          </button>
+        )
+        const nota = <p key="n" className="accesso-nota">Consigliato: {consigliaCloud ? 'il Google Drive' : 'questo dispositivo'}, che ha più dati. L’altra scelta sostituisce i dati che scarti.</p>
+        return consigliaCloud ? [cloud, disp, nota] : [disp, cloud, nota]
+      })()}
       <p className="accesso-nota">In entrambi i casi tengo una copia di sicurezza dei dati scartati: la trovi in Impostazioni.</p>
       {errore && <div role="alert" className="accesso-errore">{errore}</div>}
     </Schermo>

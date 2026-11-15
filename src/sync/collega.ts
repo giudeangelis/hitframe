@@ -52,7 +52,8 @@ export async function completaCollegamento(): Promise<EsitoCollega> {
   if (precedente && precedente.email !== p.email) dimenticaBase()
   setAccount({ ...p, collegato: precedente?.collegato ?? new Date().toISOString() })
   const s = await situazioneIniziale()
-  if (!s.remoto) {
+  if (!s.remoto || s.nelCloud === 0) {
+    // nel cloud non c'è niente di utile: teniamo i dati di questo dispositivo, senza chiedere
     await usaDatiLocali()
     return { tipo: 'fatto', messaggio: s.suDispositivo ? 'Account collegato: i tuoi dati ora sono anche nel tuo Google Drive' : 'Account collegato' }
   }
