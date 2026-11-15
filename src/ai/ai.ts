@@ -141,12 +141,22 @@ async function chiediGemini(chiave: string, modello: string, req: Richiesta, max
   const modelli = [modello, ...RISERVE_GEMINI.filter((m) => m !== modello)]
   let ultimo = ''
   for (const m of modelli) {
-    for (let tentativo = 0; tentativo < 2; tentativo++) {
-      const r = await richiesta(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-goog-api-key': chiave },
-        body,
-      })
+    for (let tentativo = 0; tentativo < 3; tentativo++) {
+      let r: Response
+      try {
+        r = await richiesta(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-goog-api-key': chiave },
+          body,
+        })
+      } catch (e) {
+        // quando Google è sovraccarico a volte la risposta arriva senza intestazioni e il browser la vede
+        // come "connessione fallita": la trattiamo come un sovraccarico (riprova, poi modello di riserva)
+        ultimo = e instanceof Error ? e.message : 'connessione interrotta'
+        if (navigator.onLine === false) throw new ErroreAI('Sei senza rete: riprova quando torna la connessione.')
+        await attesa(tentativo === 0 ? 2000 : 4000)
+        continue
+      }
       if (r.ok) {
         const j = await r.json()
         return (j.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '').join('\n')
