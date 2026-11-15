@@ -27,16 +27,21 @@ function Stepper({ label, value, onChange }: { label: string; value: number; onC
 }
 
 export default function ProvaForm({
-  drillId, colpi = [], tempo, par, modalita, onClose, onSalvata,
+  drillId, colpi = [], tempo, par, modalita, onClose, onSalvata, eventoId: eventoIniziale = null,
 }: {
-  drillId?: string; colpi?: number[]; tempo?: number | null; par?: number | null; modalita?: 'fuoco' | 'bianco'
+  drillId?: string; colpi?: number[]; tempo?: number | null; par?: number | null; modalita?: 'fuoco' | 'bianco'; eventoId?: number | null
   onClose: () => void; onSalvata?: (id: number) => void
 }) {
   const toast = useToast()
   const personali = useLiveQuery(() => db.drillPersonali.toArray()) ?? []
   const profilo = useLiveQuery(async () => normalizzaProfilo(await db.profilo.get('me')))
   const oggi = oggiKey()
-  const eventiOggi = useLiveQuery(() => db.eventi.where('data').equals(oggi).filter((e) => e.tipo === 'fuoco' || e.tipo === 'bianco').toArray(), [oggi]) ?? []
+  const eventiOggi = useLiveQuery(async () => {
+    const l = await db.eventi.where('data').equals(oggi).filter((e) => e.tipo === 'fuoco' || e.tipo === 'bianco').toArray()
+    // la sessione da cui arrivi compare sempre, anche se è di un altro giorno
+    if (eventoIniziale && !l.some((e) => e.id === eventoIniziale)) { const e = await db.eventi.get(eventoIniziale); if (e) l.unshift(e) }
+    return l
+  }, [oggi, eventoIniziale]) ?? []
 
   const [did, setDid] = useState(drillId ?? 'bill')
   const drill = trovaDrill(did, personali)
@@ -47,7 +52,7 @@ export default function ProvaForm({
   const [pulite, setPulite] = useState(1)
   const [ripetizioni, setRipetizioni] = useState(1)
   const [note, setNote] = useState('')
-  const [eventoId, setEventoId] = useState<number | null>(null)
+  const [eventoId, setEventoId] = useState<number | null>(eventoIniziale)
   const [salvata, setSalvata] = useState<{ suggeriti: [keyof TempiPersonali, number, number][] } | null>(null)
 
   const isMajor = major ?? (profilo ? majorDiDefault(profilo.divisione) : false)

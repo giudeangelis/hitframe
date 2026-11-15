@@ -3,7 +3,8 @@ import { db, nowIso } from '../db/db'
 import { LIVELLI_GARA, TIPI_EVENTO, type DettagliGara, type Evento, type TipoEvento } from '../db/types'
 import { linkMaps } from '../lib/maps'
 import { dopoSalvataggio, primaDiEliminare } from '../google/calendar'
-import { MapPin } from 'lucide-react'
+import { MapPin, Plus, X } from 'lucide-react'
+import SceltaDrill from './SceltaDrill'
 import { Link } from 'react-router-dom'
 import { tuttiDrill } from '../allenamento/servizi'
 import { linkIscrizione } from '../lib/mare'
@@ -64,6 +65,7 @@ export default function EventoForm({
     return per ? { ...base, data: per.inizio, dataFine: per.fine } : base
   })
   const [confermaElimina, setConfermaElimina] = useState(false)
+  const [sceltaDrill, setSceltaDrill] = useState(false)
   const personali = useLiveQuery(() => db.drillPersonali.toArray()) ?? []
   const armi = useLiveQuery(() => db.armi.toArray()) ?? []
   const set = <K extends keyof Evento>(k: K, v: Evento[K]) => setE((p) => ({ ...p, [k]: v }))
@@ -277,17 +279,33 @@ export default function EventoForm({
           </div>
         )}
 
-        {e.drill && e.drill.length > 0 && (
+        {(e.tipo === 'fuoco' || e.tipo === 'bianco' || (e.drill?.length ?? 0) > 0) && (
           <div className="field">
-            <span className="label">Drill della sessione</span>
-            <div className="chips">
-              {e.drill.map((id) => {
-                const d = tuttiDrill(personali).find((x) => x.id === id)
-                return d ? <Link key={id} to={`/allenamento/${id}`} className="badge" style={{ textDecoration: 'none', padding: '6px 10px' }} onClick={onClose}>{d.nome}</Link> : null
-              })}
-            </div>
+            <span className="label">Drill e stage della sessione</span>
+            {(e.drill?.length ?? 0) > 0 && (
+              <div className="list" style={{ gap: 6 }}>
+                {e.drill!.map((id, i) => {
+                  const d = tuttiDrill(personali).find((x) => x.id === id)
+                  return (
+                    <div key={id} className="row" style={{ flexWrap: 'nowrap', gap: 6 }}>
+                      <span className="badge" style={{ minWidth: 26, textAlign: 'center' }}>{i + 1}</span>
+                      {evento?.id
+                        ? <Link to={`/allenamento/${id}?evento=${evento.id}`} style={{ flex: 1, fontWeight: 600 }} onClick={onClose}>{d?.nome ?? 'Drill eliminato'}</Link>
+                        : <span style={{ flex: 1, fontWeight: 600 }}>{d?.nome ?? 'Drill eliminato'}</span>}
+                      <button type="button" className="btn icon ghost" style={{ width: 34, minHeight: 34 }} aria-label="Togli dalla sessione"
+                        onClick={() => set('drill', e.drill!.filter((x) => x !== id))}><X size={15} /></button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            <button type="button" className="btn" style={{ alignSelf: 'flex-start' }} onClick={() => setSceltaDrill(true)}>
+              <Plus size={16} /> {(e.drill?.length ?? 0) ? 'Modifica elenco' : 'Aggiungi drill o stage'}
+            </button>
+            {!evento?.id && (e.drill?.length ?? 0) > 0 && <span className="hint">Dopo il salvataggio i drill diventano cliccabili: al poligono li apri e registri le prove nella sessione.</span>}
           </div>
         )}
+        {sceltaDrill && <SceltaDrill scelti={e.drill ?? []} modalita={e.tipo === 'bianco' ? 'bianco' : 'fuoco'} onConferma={(ids) => set('drill', ids)} onClose={() => setSceltaDrill(false)} />}
 
         <div className="field">
           <label htmlFor="ev-note">Note</label>

@@ -597,3 +597,6 @@ table.colpi th { font-family: var(--display); letter-spacing: 1.5px; text-transf
 .chat-piede { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--border); align-items: flex-end; }
 .chat-piede textarea { flex: 1; resize: none; max-height: 120px; min-height: 44px; }
 @media (min-width: 900px) { .chat-fab { bottom: 24px; right: 24px; } .chat-pannello { bottom: 24px; right: 24px; } }
+.drill-sessione { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 4px 64px; }
+.drill-sessione .chip { text-decoration: none; }
+.sessione-banner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 10px 12px; font-size: 14px; }

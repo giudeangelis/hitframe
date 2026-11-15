@@ -1,4 +1,8 @@
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Crosshair } from 'lucide-react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { Link } from 'react-router-dom'
+import { tuttiDrill } from '../allenamento/servizi'
+import { db } from '../db/db'
 import { TIPI_EVENTO, type Evento } from '../db/types'
 import { fmt, quando } from '../lib/date'
 
@@ -14,8 +18,28 @@ export function eventoMeta(e: Evento): string {
   return parti.join(' · ') || TIPI_EVENTO[e.tipo].label
 }
 
+/** I drill della sessione come scorciatoie: al poligono apri il drill e registri la prova nella sessione. */
+function DrillSessione({ e }: { e: Evento }) {
+  const personali = useLiveQuery(() => db.drillPersonali.toArray()) ?? []
+  if (!e.drill?.length) return null
+  const tutti = tuttiDrill(personali)
+  return (
+    <div className="drill-sessione">
+      {e.drill.map((id, i) => {
+        const d = tutti.find((x) => x.id === id)
+        return d ? (
+          <Link key={id} to={`/allenamento/${id}?evento=${e.id}`} className="chip">
+            <Crosshair size={12} style={{ verticalAlign: -1 }} /> {i + 1}. {d.nome}
+          </Link>
+        ) : null
+      })}
+    </div>
+  )
+}
+
 export default function EventoItem({ e, onClick, conData = true }: { e: Evento; onClick: () => void; conData?: boolean }) {
   return (
+    <>
     <button className={`item${e.completato ? ' done' : ''}`} onClick={onClick}>
       {conData ? (
         <div className="datebox" aria-hidden="true">
@@ -35,5 +59,7 @@ export default function EventoItem({ e, onClick, conData = true }: { e: Evento; 
         <span className={`badge ${e.gara?.iscritto ? 'gara' : ''}`}>{e.gara?.iscritto ? 'Iscritto' : 'Da iscrivere'}</span>
       )}
     </button>
+    {!e.completato && <DrillSessione e={e} />}
+    </>
   )
 }

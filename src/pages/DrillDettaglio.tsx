@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowLeft, Pencil, Play, Plus, Share2, Star, Trash2 } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Pencil, Play, Plus, Share2, Star, Trash2 } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import DrillForm from '../components/DrillForm'
 import DrillIstruzioni from '../components/DrillIstruzioni'
 import DrillSimulazione from '../components/DrillSimulazione'
@@ -42,6 +42,9 @@ export default function DrillDettaglio() {
   const profilo = useLiveQuery(async () => normalizzaProfilo(await db.profilo.get('me')))
   const prove = useLiveQuery(() => db.prove.where('drillId').equals(id).reverse().sortBy('creato'), [id]) ?? []
   const [prova, setProva] = useState(false)
+  const [sp] = useSearchParams()
+  const eventoId = sp.get('evento') ? Number(sp.get('evento')) : null
+  const sessione = useLiveQuery(async () => (eventoId ? await db.eventi.get(eventoId) : undefined), [eventoId])
   const [modifica, setModifica] = useState(false)
   const [esporta, setEsporta] = useState(false)
   const { isPreferito, commuta } = usePreferiti()
@@ -64,6 +67,22 @@ export default function DrillDettaglio() {
   return (
     <div className="page">
       <Link to="/allenamento" className="btn ghost" style={{ alignSelf: 'flex-start', marginLeft: -8 }}><ArrowLeft size={18} /> Allenamento</Link>
+      {sessione && (() => {
+        const lista = sessione.drill ?? []
+        const i = lista.indexOf(d.id)
+        const prec = i > 0 ? lista[i - 1] : null
+        const succ = i >= 0 && i < lista.length - 1 ? lista[i + 1] : null
+        const fatte = prove.filter((p) => p.eventoId === sessione.id).length
+        return (
+          <div className="sessione-banner">
+            <span style={{ flex: 1, minWidth: 160 }}>
+              Sessione <b>{sessione.titolo}</b>{i >= 0 ? ` · drill ${i + 1} di ${lista.length}` : ''}{fatte ? ` · ${fatte} ${fatte === 1 ? 'prova registrata' : 'prove registrate'} qui` : ''}
+            </span>
+            {prec && <Link className="btn ghost" style={{ minHeight: 34 }} to={`/allenamento/${prec}?evento=${sessione.id}`}><ChevronLeft size={16} /> Prec.</Link>}
+            {succ && <Link className="btn ghost" style={{ minHeight: 34 }} to={`/allenamento/${succ}?evento=${sessione.id}`}>Succ. <ChevronRight size={16} /></Link>}
+          </div>
+        )
+      })()}
       <header className="page-header">
         <div>
           <h1>{d.nome}</h1>
@@ -147,7 +166,7 @@ export default function DrillDettaglio() {
         )}
       </section>
 
-      {prova && <ProvaForm drillId={d.id} onClose={() => setProva(false)} />}
+      {prova && <ProvaForm drillId={d.id} eventoId={eventoId} onClose={() => setProva(false)} />}
       {modifica && personale && <DrillForm drill={personale} onClose={() => setModifica(false)} />}
       {esporta && <DrillEsporta d={d} personale={personale} onClose={() => setEsporta(false)} />}
     </div>
