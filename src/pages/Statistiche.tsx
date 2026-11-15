@@ -99,7 +99,7 @@ export default function Statistiche() {
         </div>
       ) : (
         <>
-          <div className="stats">
+          <div className="stats zone">
             <div className="stat"><div className="v">{punti.length}</div><div className="l">Gare analizzate</div></div>
             <div className="stat"><div className="v">{f1(media)}%</div><div className="l">Media in divisione</div></div>
             <div className="stat"><div className="v" style={{ color: trend > 0.3 ? 'var(--ok)' : trend < -0.3 ? 'var(--fuoco)' : undefined }}>{trend >= 0 ? '+' : ''}{f1(trend)}</div><div className="l">Punti % per gara (tendenza)</div></div>

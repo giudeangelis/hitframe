@@ -198,10 +198,10 @@ function Riepilogo({ a, r }: { a: Analisi; r: RisultatoGara }) {
         <section className="card">
           <div className="card-title">Colpi</div>
           <div className="chips">
-            <span className="badge" style={{ color: 'var(--ok)' }}>A {a.tot.A}</span>
-            <span className="badge">C {a.tot.C}</span>
-            <span className="badge">D {a.tot.D}</span>
-            <span className="badge" style={{ color: a.tot.MI ? 'var(--fuoco)' : undefined }}>Mancati {a.tot.MI}</span>
+            <span className="badge zona-a">A {a.tot.A}</span>
+            <span className="badge zona-c">C {a.tot.C}</span>
+            <span className="badge zona-d">D {a.tot.D}</span>
+            <span className={`badge${a.tot.MI ? ' zona-m' : ''}`}>Mancati {a.tot.MI}</span>
             <span className="badge" style={{ color: a.tot.NS ? 'var(--fuoco)' : undefined }}>No-shoot {a.tot.NS}</span>
             <span className="badge" style={{ color: a.tot.PE ? 'var(--fuoco)' : undefined }}>Procedure {a.tot.PE}</span>
           </div>

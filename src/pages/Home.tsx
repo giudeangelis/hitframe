@@ -122,7 +122,7 @@ export default function Home() {
 
       <AvvisiMateriale />
 
-      <div className="stats" aria-label="Questo mese" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+      <div className="stats zone" aria-label="Questo mese" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
         <div className="stat"><div className="v" style={{ color: 'var(--fuoco)' }}>{fuoco}</div><div className="l">A fuoco questo mese</div></div>
         <div className="stat"><div className="v" style={{ color: 'var(--bianco)' }}>{bianco}</div><div className="l">In bianco questo mese</div></div>
         <div className="stat"><div className="v">{colpi}</div><div className="l">Colpi sparati</div></div>

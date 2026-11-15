@@ -468,3 +468,63 @@ input[type=range] { width: 100%; accent-color: var(--accent); min-height: 32px; 
   body.stampa-scheda .sheet { position: static !important; max-height: none !important; overflow: visible !important; box-shadow: none !important; background: none !important; border: 0 !important; }
   body.stampa-scheda .scheda-export { position: absolute; left: 0; top: 0; width: 100%; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+.vista-3d { width: 100%; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); touch-action: none; background: #9fc3e6; }
+.vista-3d canvas { display: block; }
+
+.crediti-riga { display: flex; flex-direction: column; padding: 8px 0; border-top: 1px solid var(--border); }
+.crediti-riga:first-of-type { border-top: 0; }
+.crediti-riga b { font-family: var(--display); font-size: 20px; font-weight: 800; font-style: italic; text-transform: uppercase; }
+
+/* ================= Tema "Cartone" (0.14) =================
+   Il bersaglio IPSC come linguaggio: cartone, zone A/C/D, pasters, fori.
+   Il timer usa il display del timer da gara. */
+:root {
+  --kraft: #c9a77a; --kraft-2: #b8935f; --kraft-dark: #8a6c45; --kraft-ink: #1d140a; --paster: #d9c39d; --paster-bordo: #a8855a;
+  --radius: 8px; --radius-sm: 6px;
+}
+.card, .stat, .item, .drill-card { border-radius: var(--radius); }
+.badge { border-radius: 4px; }
+
+/* Hero: pannello di cartone con le zone stampate, due fori e due pasters */
+.hero {
+  background: var(--kraft) url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20220%20280%22%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%237a5a33%22%20stroke-width%3D%222.5%22%20opacity%3D%22.55%22%3E%3Cpolygon%20points%3D%2259.4%2C0.0%20160.6%2C0.0%20220.0%2C67.2%20220.0%2C212.8%20160.6%2C280.0%2059.4%2C280.0%200.0%2C212.8%200.0%2C67.2%22/%3E%3Cpolygon%20points%3D%2276.6%2C28.0%20143.4%2C28.0%20182.6%2C81.8%20182.6%2C198.2%20143.4%2C252.0%2076.6%2C252.0%2037.4%2C198.2%2037.4%2C81.8%22/%3E%3Crect%20x%3D%2277.0%22%20y%3D%2256.0%22%20width%3D%2266.0%22%20height%3D%22156.8%22%20rx%3D%2226.4%22/%3E%3C/g%3E%3Cg%20fill%3D%22%231a1a1a%22%3E%3Ccircle%20cx%3D%22103.39999999999999%22%20cy%3D%22106.4%22%20r%3D%225.5%22/%3E%3Ccircle%20cx%3D%22127.6%22%20cy%3D%22131.6%22%20r%3D%225.5%22/%3E%3C/g%3E%3Cg%20fill%3D%22%23d9c39d%22%20stroke%3D%22%23a8855a%22%3E%3Crect%20x%3D%2279.2%22%20y%3D%22156.8%22%20width%3D%2215%22%20height%3D%2215%22/%3E%3Crect%20x%3D%22149.60000000000002%22%20y%3D%2278.4%22%20width%3D%2215%22%20height%3D%2215%22/%3E%3C/g%3E%3C/svg%3E") no-repeat right -78px bottom -36px / 200px 255px;
+  color: var(--kraft-ink); border: 0; box-shadow: inset 0 0 0 3px var(--kraft-2);
+}
+.hero h2, .hero .countdown .n { color: var(--kraft-ink); }
+.hero .kicker { color: var(--kraft-ink); opacity: .8; }
+.hero .meta, .hero .countdown .u, .hero p, .hero .prose { color: #3b2a16 !important; }
+.hero .badge { background: var(--kraft-ink); color: var(--kraft); }
+.hero .btn { background: var(--kraft-ink); border-color: var(--kraft-ink); color: #f4f4f2; }
+.hero .btn.primary { background: var(--kraft-ink); color: var(--accent); }
+.hero .countdown .n { font-size: 86px; }
+.hero > * { position: relative; }
+.hero h2 { max-width: 82%; }
+
+/* Riquadri zona A / C / D / M */
+.stats.zone .stat:nth-child(1), .zona-a { background: var(--accent); border-color: var(--accent); color: var(--accent-ink) !important; }
+.stats.zone .stat:nth-child(2), .zona-c { background: var(--kraft); border-color: var(--kraft); color: var(--kraft-ink) !important; }
+.stats.zone .stat:nth-child(3), .zona-d { background: var(--kraft-dark); border-color: var(--kraft-dark); color: #fff !important; }
+.zona-m { background: var(--fuoco); color: #fff !important; }
+.stats.zone .stat .v { color: inherit !important; }
+.stats.zone .stat .l { color: inherit; opacity: .8; }
+
+/* Elenchi con i pasters */
+ul.drill { list-style: none; padding-left: 0; }
+ul.drill li { position: relative; padding-left: 22px; }
+ul.drill li::before { content: ''; position: absolute; left: 0; top: 4px; width: 11px; height: 11px; background: var(--paster); box-shadow: 0 0 0 1px var(--paster-bordo); }
+
+/* Card dei drill: titolo su una striscia di cartone */
+.drill-card { border-top: 4px solid var(--kraft); }
+.drill-card.compatta { border-top-color: var(--kraft-dark); }
+
+/* Timer: il display del timer da gara */
+.timer-display { background: #1d2a20; border: 3px solid #2e3a31; border-radius: 12px; box-shadow: inset 0 0 30px rgba(0, 0, 0, .6); }
+.timer-display.flash { background: #2c3f22; }
+.timer-stato { color: #8fb55a; font-family: var(--display); font-size: 15px; letter-spacing: 3px; }
+.timer-tempo { color: #c9f27a; font-style: normal; text-shadow: 0 0 14px rgba(201, 242, 122, .35); letter-spacing: 2px; }
+.timer-sub { color: #8fb55a; font-family: var(--display); font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+.timer-azioni .btn { border-radius: 10px; border-bottom: 3px solid #000; }
+.timer-azioni .grande { letter-spacing: 2px; }
+table.colpi td { font-family: var(--display); font-weight: 800; font-size: 20px; }
+table.colpi th { font-family: var(--display); letter-spacing: 1.5px; text-transform: uppercase; }

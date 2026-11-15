@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ListChecks, MapPinned } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ISTRUZIONI, type Istruzioni } from '../allenamento/schemi'
 import type { Drill } from '../allenamento/drills'
@@ -10,6 +10,8 @@ import { db, normalizzaProfilo } from '../db/db'
 import type { DrillPersonale } from '../db/types'
 import { DrillSchema } from './DrillSchema'
 import StageMappa from './StageMappa'
+import { Segmented } from './ui'
+const Drill3D = lazy(() => import('./Drill3D'))
 
 /** Disegno dello stage con il piano sovrapposto, per i drill nati dallo studio di uno stage. */
 function DisegnoStage({ rif }: { rif: NonNullable<DrillPersonale['stage']> }) {
@@ -46,12 +48,19 @@ export default function DrillIstruzioni({ d, personale }: { d: Drill; personale?
     : ISTRUZIONI[d.id]
   const haSchema = !!ist?.schema?.elementi.length
   const haTesto = !!(ist?.allestimento || ist?.passi?.length || ist?.attenzione?.length)
+  const [vista, setVista] = useState<'2d' | '3d'>('2d')
   if (!personale?.stage && !haSchema && !haTesto) return null
   return (
     <section className="card form">
       <div className="card-title" style={{ marginBottom: 0 }}><span><ListChecks size={18} style={{ verticalAlign: -3 }} /> Come si fa</span></div>
-      {personale?.stage ? <DisegnoStage rif={personale.stage} /> : haSchema && <DrillSchema schema={ist!.schema!} titolo={d.nome} />}
       {haSchema && !personale?.stage && (
+        <Segmented<'2d' | '3d'> label="Vista" value={vista} onChange={setVista} options={[{ value: '2d', label: 'Pianta' }, { value: '3d', label: '3D' }]} />
+      )}
+      {personale?.stage ? <DisegnoStage rif={personale.stage} />
+        : haSchema && (vista === '3d'
+          ? <Suspense fallback={<p className="prose">Carico la vista 3D…</p>}><Drill3D schema={ist!.schema!} /></Suspense>
+          : <DrillSchema schema={ist!.schema!} titolo={d.nome} />)}
+      {haSchema && !personale?.stage && vista === '2d' && (
         <div className="legenda-schema">
           <span><i style={{ background: 'var(--accent)', borderRadius: 99 }} /> tu</span>
           <span><i style={{ background: '#c9a77a' }} /> carta</span>

@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { CATEGORIE_DRILL } from '../allenamento/drills'
 import { EditorSchema } from './DrillSchema'
+const Drill3D = lazy(() => import('./Drill3D'))
 import { colpi as contaColpi, corso, isBersaglio, isPosizione, vede } from '../stage/geometria'
 import { db, nowIso } from '../db/db'
 import type { DrillPersonale } from '../db/types'
@@ -15,6 +16,7 @@ export default function DrillForm({ drill, onClose }: { drill?: DrillPersonale; 
   const [passiTxt, setPassiTxt] = useState((drill?.passi ?? []).join('\n'))
   const [attTxt, setAttTxt] = useState((drill?.attenzione ?? []).join('\n'))
   const [selEl, setSelEl] = useState<number | null>(null)
+  const [anteprima3d, setAnteprima3d] = useState(false)
   const [obTxt, setObTxt] = useState(drill?.obiettivo ? String(drill.obiettivo).replace('.', ',') : '')
   const [conferma, setConferma] = useState(false)
   const set = <K extends keyof DrillPersonale>(k: K, v: DrillPersonale[K]) => setD((p) => ({ ...p, [k]: v }))
@@ -97,6 +99,8 @@ export default function DrillForm({ drill, onClose }: { drill?: DrillPersonale; 
                           })}
                         </g>
                       )} />
+                    <button type="button" className="btn ghost" style={{ alignSelf: 'flex-start', minHeight: 34 }} onClick={() => setAnteprima3d(!anteprima3d)}>{anteprima3d ? 'Chiudi il 3D' : 'Anteprima 3D'}</button>
+                    {anteprima3d && <Suspense fallback={<p className="prose">Carico la vista 3D…</p>}><Drill3D schema={sc} altezza={300} /></Suspense>}
                     <p className="prose" style={{ margin: 0, fontSize: 12 }}>
                       {n} colpi · {corso(n).tipo}{corso(n).oltre ? ' (oltre i 32 di un long course)' : ''}. Con Sposta tocca un box o il tiratore: in verde i bersagli visibili, in rosso quelli coperti da pareti e barili.
                       {n !== d.colpi && d.modalita === 'fuoco' && <> <button type="button" className="btn ghost" style={{ minHeight: 28, padding: '0 8px' }} onClick={() => set('colpi', n)}>Usa {n} colpi</button></>}
