@@ -9,6 +9,7 @@ export default function ImpostazioniAI() {
   const salvata = useLiveQuery(() => getConfigAI())
   const [bozza, setBozza] = useState<ConfigAI | null>(null)
   const [prova, setProva] = useState<'idle' | 'in-corso'>('idle')
+  const [errore, setErrore] = useState('')
   if (salvata === undefined) return null
   const c: ConfigAI = bozza ?? salvata ?? { fornitore: 'claude', chiave: '', modello: MODELLI_DEFAULT.claude }
   const set = (x: Partial<ConfigAI>) => setBozza({ ...c, ...x })
@@ -21,10 +22,11 @@ export default function ImpostazioniAI() {
 
   async function verifica() {
     setProva('in-corso')
+    setErrore('')
     try {
       toast(await provaCollegamento(c))
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Collegamento non riuscito')
+      setErrore(e instanceof Error ? e.message : 'Collegamento non riuscito')
     } finally {
       setProva('idle')
     }
@@ -64,6 +66,7 @@ export default function ImpostazioniAI() {
         <button className="btn" onClick={verifica} disabled={!c.chiave.trim() || prova === 'in-corso'}>{prova === 'in-corso' ? 'Verifico…' : 'Prova collegamento'}</button>
         {salvata && <button className="btn ghost" onClick={async () => { await setConfigAI(null); setBozza(null); toast('Assistente AI scollegato') }}>Scollega</button>}
       </div>
+      {errore && <div role="alert" style={{ color: 'var(--accent-strong)', fontSize: 13, lineHeight: 1.45, wordBreak: 'break-word' }}>{errore}</div>}
     </section>
   )
 }

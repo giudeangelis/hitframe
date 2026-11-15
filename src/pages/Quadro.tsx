@@ -18,6 +18,7 @@ export default function Quadro() {
   const profilo = useLiveQuery(() => db.profilo.get('me'))
   const salvato = useLiveQuery(() => getImp<{ data: string; c: CommentoAI } | null>('quadroAI', null))
   const [occupato, setOccupato] = useState(false)
+  const [errore, setErrore] = useState('')
   const q = useMemo(() => (dati && risultati ? costruisciQuadro(dati.punti, risultati, dati.eventi, dati.diario, profilo) : null), [dati, risultati, profilo])
 
   if (!q || !dati) return <div className="page" />
@@ -26,12 +27,13 @@ export default function Quadro() {
     const cfg = await getConfigAI()
     if (!cfg) { toast('Configura prima l’AI in Impostazioni'); return }
     setOccupato(true)
+    setErrore('')
     try {
-      const testo = await chiedi(cfg, { sistema: ISTRUZIONI_AI, testo: JSON.stringify(riassuntoPerAI(q!, dati!.punti, profilo)), maxToken: 2500 })
+      const testo = await chiedi(cfg, { sistema: ISTRUZIONI_AI, testo: JSON.stringify(riassuntoPerAI(q!, dati!.punti, profilo)), maxToken: 8000 })
       const c = estraiJson<CommentoAI>(testo)
       await setImp('quadroAI', { data: new Date().toISOString(), c })
     } catch (e) {
-      toast(e instanceof ErroreAI ? e.message : 'Commento non riuscito, riprova')
+      setErrore(e instanceof ErroreAI ? e.message : 'Commento non riuscito, riprova')
     } finally {
       setOccupato(false)
     }
@@ -159,6 +161,7 @@ export default function Quadro() {
             {occupato ? <Loader2 size={18} className="spin" /> : <Sparkles size={18} />} {salvato?.c ? 'Aggiorna il commento' : 'Chiedi il quadro al coach'}
           </button>
         </div>
+        {errore && <div role="alert" style={{ color: 'var(--accent-strong)', fontSize: 13, marginTop: 8, wordBreak: 'break-word' }}>{errore}</div>}
       </section>
     </div>
   )

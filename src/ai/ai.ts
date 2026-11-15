@@ -42,13 +42,24 @@ interface Richiesta {
   maxToken?: number
 }
 
+/** Traduce gli errori più comuni in una frase che dice cosa fare. */
+export function spiegaErrore(msg: string, status?: number): string {
+  if (/referer|referrer/i.test(msg)) {
+    return `La chiave accetta richieste solo da altri indirizzi: nelle impostazioni della chiave (Google Cloud → Credenziali) togli la restrizione "Siti web" o aggiungi ${window.location.origin}/*. Dettaglio: ${msg}`
+  }
+  if (/API key not valid|invalid.*api.?key|invalid x-api-key|Incorrect API key/i.test(msg) || status === 401) return `Chiave non valida: controlla di averla copiata tutta. Dettaglio: ${msg}`
+  if (/quota|rate limit|RESOURCE_EXHAUSTED/i.test(msg) || status === 429) return `Limite di utilizzo raggiunto per ora: riprova più tardi. Dettaglio: ${msg}`
+  if (/not found|is not supported|does not exist/i.test(msg) || status === 404) return `Modello non disponibile: lascia vuoto il campo modello per usare quello predefinito. Dettaglio: ${msg}`
+  return msg
+}
+
 async function leggiErrore(r: Response): Promise<string> {
+  let msg = `Errore ${r.status}`
   try {
     const j = await r.json()
-    return j?.error?.message ?? j?.error?.status ?? `Errore ${r.status}`
-  } catch {
-    return `Errore ${r.status}`
-  }
+    msg = j?.error?.message ?? j?.error?.status ?? msg
+  } catch { /* ignore */ }
+  return spiegaErrore(msg, r.status)
 }
 
 /** Invia testo (e un'immagine facoltativa) e restituisce il testo della risposta. */
@@ -124,11 +135,11 @@ async function chiediGemini(chiave: string, modello: string, req: Richiesta, max
         const j = await r.json()
         return (j.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? '').join('\n')
       }
+      // modello inesistente: passa al successivo
+      if (r.status === 404) { ultimo = await leggiErrore(r); break }
       ultimo = await leggiErrore(r)
       // chiave errata o richiesta non valida: inutile insistere
       if (r.status === 400 || r.status === 401 || r.status === 403) throw new ErroreAI(ultimo)
-      // modello inesistente: passa al successivo
-      if (r.status === 404) break
       // sovraccarico (503) o limite (429): aspetta e riprova, poi cambia modello
       await attesa(tentativo === 0 ? 2500 : 5000)
     }
@@ -150,7 +161,7 @@ export function estraiJson<T>(testo: string): T {
 }
 
 export async function provaCollegamento(cfg: ConfigAI): Promise<string> {
-  const t = await chiedi(cfg, { sistema: 'Rispondi solo con JSON.', testo: 'Rispondi con {"ok": true}', maxToken: 400 })
+  const t = await chiedi(cfg, { sistema: 'Rispondi solo con JSON.', testo: 'Rispondi con {"ok": true}', maxToken: 2000 })
   estraiJson(t)
   return 'Collegamento riuscito'
 }

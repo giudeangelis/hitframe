@@ -1,6 +1,6 @@
 [package]
 name = "hitframe"
-version = "0.18.2"
+version = "0.18.3"
 description = "Hitframe: allenamento, gare e preparazione per il tiro dinamico IPSC"
 authors = ["Giuseppe De Angelis"]
 edition = "2021"
