@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom'
 import { DOMANDE } from '../abilita/questionario'
 import { fmt2, tuttiDrill } from '../allenamento/servizi'
 import { GraficoLinee, Radar } from '../components/Grafici'
-import { Empty, PageHeader } from '../components/ui'
+import { Empty, PageHeader, Segmented } from '../components/ui'
 import { db, getImp, normalizzaProfilo } from '../db/db'
 import { fmt } from '../lib/date'
 import { inAltreDivisioni, nomeLeggibile, trovaPerNome } from '../risultati/motore'
@@ -24,12 +24,18 @@ export default function Statistiche() {
   const diario = useLiveQuery(() => db.diario.toArray()) ?? []
 
   const [vediAltre, setVediAltre] = useState(false)
+  const [tutteGare, setTutteGare] = useState(false)
+  const [periodo, setPeriodo] = useState<'anno' | 'due' | 'tutto'>('tutto')
   const punti = useMemo(() => (risultati && analisi ? puntiGara(risultati, analisi) : []), [risultati, analisi])
   const giudizi = useMemo(() => puntiForzaDebolezza(punti), [punti])
 
   if (!risultati || !analisi || !profilo) return <div className="page" />
 
-  const et = punti.map((p) => fmt(p.data, 'd MMM'))
+  // periodo dei grafici: con lo storico lungo si sceglie quanto guardare indietro
+  const daData = periodo === 'tutto' ? '' : new Date(Date.now() - (periodo === 'anno' ? 365 : 730) * 86400000).toISOString().slice(0, 10)
+  const pG = punti.filter((p) => p.data >= daData)
+  const lungo = pG.length > 1 && Date.parse(pG[pG.length - 1].data) - Date.parse(pG[0].data) > 300 * 86400000
+  const et = pG.map((p) => fmt(p.data, lungo ? 'MMM yy' : 'd MMM'))
   const trend = pendenza(punti.map((p) => p.reale))
   const media = punti.length ? punti.reduce((a, p) => a + p.reale, 0) / punti.length : 0
   const migliore = punti.length ? punti.reduce((a, p) => (p.reale > a.reale ? p : a)) : null
@@ -121,19 +127,24 @@ export default function Statistiche() {
             </section>
           )}
 
+          {punti.length > 12 && (
+            <Segmented<'anno' | 'due' | 'tutto'> label="Periodo dei grafici" value={periodo} onChange={setPeriodo}
+              options={[{ value: 'anno', label: 'Ultimi 12 mesi' }, { value: 'due', label: '2 anni' }, { value: 'tutto', label: `Tutto (${punti.length})` }]} />
+          )}
+
           <section className="card">
             <div className="card-title">Punteggio reale</div>
             <GraficoLinee titolo="Punteggio reale gara per gara, con la percentuale in classifica" etichette={et} formato={(n) => f1(n)}
               serie={[
-                { nome: 'Reale', valori: punti.map((p) => p.reale), colore: 'var(--accent)' },
-                { nome: '% classifica', valori: punti.map((p) => p.pct), colore: 'var(--muted)', tratteggio: true },
+                { nome: 'Reale', valori: pG.map((p) => p.reale), colore: 'var(--accent)' },
+                { nome: '% classifica', valori: pG.map((p) => p.pct), colore: 'var(--muted)', tratteggio: true },
               ]} />
             <p className="prose" style={{ fontSize: 12, margin: '6px 0 0' }}>
               Il punteggio reale misura la tua gara rispetto a un Grand Master in forma sugli stessi stage, stimato da tutti i tiratori presenti e dalla loro classe:
               non dipende da chi ha vinto. Il tratteggio è la percentuale in classifica, che invece cambia con il livello del campo.
             </p>
             <div className="list" style={{ marginTop: 10 }}>
-              {[...punti].reverse().map((p) => (
+              {[...punti].reverse().slice(0, tutteGare ? undefined : 8).map((p) => (
                 <Link key={p.id} to={`/risultati/${p.id}`} className="item" style={{ padding: '8px 12px' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="title" style={{ fontSize: 14 }}>{p.gara}</div>
@@ -142,6 +153,11 @@ export default function Statistiche() {
                   <b style={{ color: p === migliore ? 'var(--accent)' : undefined }}>{f1(p.reale)}</b>
                 </Link>
               ))}
+              {punti.length > 8 && (
+                <button className="btn ghost" style={{ alignSelf: 'flex-start' }} onClick={() => setTutteGare((v) => !v)}>
+                  {tutteGare ? 'Mostra solo le ultime 8' : `Mostra tutte le ${punti.length} gare`}
+                </button>
+              )}
             </div>
           </section>
 
@@ -150,8 +166,8 @@ export default function Statistiche() {
               <div className="card-title">Precisione e velocità reali</div>
               <GraficoLinee titolo="Precisione e velocità rispetto a un Grand Master in forma" etichette={et} formato={(n) => f1(n)}
                 serie={[
-                  { nome: 'Precisione', valori: punti.map((p) => p.realePrecisione), colore: 'var(--accent)' },
-                  { nome: 'Velocità', valori: punti.map((p) => p.realeVelocita), colore: 'var(--fuoco)' },
+                  { nome: 'Precisione', valori: pG.map((p) => p.realePrecisione), colore: 'var(--accent)' },
+                  { nome: 'Velocità', valori: pG.map((p) => p.realeVelocita), colore: 'var(--fuoco)' },
                 ]} />
               <p className="prose" style={{ fontSize: 12, margin: '6px 0 0' }}>100 = come un Grand Master in forma. Precisione × velocità = punteggio reale.</p>
             </section>
@@ -161,8 +177,8 @@ export default function Statistiche() {
             <div className="card-title">Colpi in A</div>
             <GraficoLinee titolo="Percentuale di colpi in A rispetto ai primi 10" etichette={et} formato={(n) => `${Math.round(n)}%`}
               serie={[
-                { nome: 'Tu', valori: punti.map((p) => p.aPct * 100), colore: 'var(--accent)' },
-                { nome: 'Primi 10', valori: punti.map((p) => p.aPctTop10 * 100), colore: 'var(--muted)', tratteggio: true },
+                { nome: 'Tu', valori: pG.map((p) => p.aPct * 100), colore: 'var(--accent)' },
+                { nome: 'Primi 10', valori: pG.map((p) => p.aPctTop10 * 100), colore: 'var(--muted)', tratteggio: true },
               ]} />
           </section>
 
@@ -170,8 +186,8 @@ export default function Statistiche() {
             <div className="card-title">Tempo rispetto ai primi 10</div>
             <GraficoLinee titolo="Tempo totale in percentuale della media dei primi 10" etichette={et} formato={(n) => `${Math.round(n)}`}
               serie={[
-                { nome: 'Tu', valori: punti.map((p) => p.tempoRel * 100), colore: 'var(--accent)' },
-                { nome: 'Primi 10', valori: punti.map(() => 100), colore: 'var(--muted)', tratteggio: true },
+                { nome: 'Tu', valori: pG.map((p) => p.tempoRel * 100), colore: 'var(--accent)' },
+                { nome: 'Primi 10', valori: pG.map(() => 100), colore: 'var(--muted)', tratteggio: true },
               ]} />
             <p className="prose" style={{ fontSize: 12, margin: '6px 0 0' }}>100 = tempo medio dei primi 10. Sotto 100 sei più veloce.</p>
           </section>
@@ -180,8 +196,8 @@ export default function Statistiche() {
             <div className="card-title">Mancati ogni 100 colpi</div>
             <GraficoLinee titolo="Mancati ogni 100 colpi rispetto ai primi 10" etichette={et} formato={(n) => f1(n)} minimo={0}
               serie={[
-                { nome: 'Tu', valori: punti.map((p) => p.mancati100), colore: 'var(--accent)' },
-                { nome: 'Primi 10', valori: punti.map((p) => p.mancati100Top10), colore: 'var(--muted)', tratteggio: true },
+                { nome: 'Tu', valori: pG.map((p) => p.mancati100), colore: 'var(--accent)' },
+                { nome: 'Primi 10', valori: pG.map((p) => p.mancati100Top10), colore: 'var(--muted)', tratteggio: true },
               ]} />
             <p className="prose" style={{ fontSize: 12, margin: '6px 0 0' }}>
               Mancati, no-shoot e procedure ti sono costati {f1(punti.reduce((a, p) => a + p.costoErrori, 0))} punti gara in totale.

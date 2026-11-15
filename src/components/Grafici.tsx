@@ -2,36 +2,65 @@ import { useState } from 'react'
 
 export interface Serie { nome: string; valori: (number | null)[]; colore: string; tratteggio?: boolean }
 
+/** Media mobile centrata: tiene la linea leggibile quando le gare sono tante. */
+function mediaMobile(v: (number | null)[], finestra: number): (number | null)[] {
+  const m = Math.floor(finestra / 2)
+  return v.map((_, i) => {
+    const w = v.slice(Math.max(0, i - m), Math.min(v.length, i + m + 1)).filter((x): x is number => x !== null)
+    return w.length ? w.reduce((a, b) => a + b, 0) / w.length : null
+  })
+}
+
 /**
  * Grafico a linee leggero: una scala sola, etichette dirette sull'ultimo punto,
  * tooltip al tocco o al passaggio del mouse su ogni gara.
+ * Con tante gare i valori singoli diventano puntini tenui e la linea è la media mobile.
  */
 export function GraficoLinee({ etichette, serie, formato, invertito = false, minimo, massimo, titolo }: {
   etichette: string[]; serie: Serie[]; formato: (n: number) => string; invertito?: boolean; minimo?: number; massimo?: number; titolo: string
 }) {
   const [hover, setHover] = useState<number | null>(null)
   const W = 360, H = 190, PL = 38, PR = 64, PT = 12, PB = 26
-  const tutti = serie.flatMap((s) => s.valori.filter((v): v is number => v !== null))
-  if (!tutti.length) return null
-  let lo = minimo ?? Math.min(...tutti), hi = massimo ?? Math.max(...tutti)
+  const n = etichette.length
+  const denso = n > 12
+  const finestra = n > 40 ? 7 : 5
+  const linee = serie.map((s) => (denso ? mediaMobile(s.valori, finestra) : s.valori))
+  // la scala segue le linee (più gli estremi dei singoli valori, ma senza farsi schiacciare dai picchi isolati)
+  const tuttiLinee = linee.flatMap((v) => v.filter((x): x is number => x !== null))
+  const tuttiPunti = serie.flatMap((s) => s.valori.filter((v): v is number => v !== null))
+  if (!tuttiPunti.length) return null
+  const ordinati = [...tuttiPunti].sort((a, b) => a - b)
+  const q = (p: number) => ordinati[Math.min(ordinati.length - 1, Math.max(0, Math.round((ordinati.length - 1) * p)))]
+  let lo = minimo ?? Math.min(...tuttiLinee, denso ? q(0.03) : ordinati[0])
+  let hi = massimo ?? Math.max(...tuttiLinee, denso ? q(0.97) : ordinati[ordinati.length - 1])
   if (hi - lo < 1e-9) { lo -= 1; hi += 1 }
   const pad = (hi - lo) * 0.12
   if (minimo === undefined) lo -= pad
   if (massimo === undefined) hi += pad
-  const n = etichette.length
   const x = (i: number) => PL + (n === 1 ? (W - PL - PR) / 2 : (i * (W - PL - PR)) / (n - 1))
   const y = (v: number) => {
-    const t = (v - lo) / (hi - lo)
+    const c = Math.max(lo, Math.min(hi, v))
+    const t = (c - lo) / (hi - lo)
     return PT + (invertito ? t : 1 - t) * (H - PT - PB)
   }
   const ticks = [0, 0.5, 1].map((t) => lo + t * (hi - lo))
+  // etichette dell'asse x: al massimo 5, ben distanziate
+  const maxEtichette = 5
+  const indiciX = n <= maxEtichette ? etichette.map((_, i) => i)
+    : Array.from({ length: maxEtichette }, (_, k) => Math.round((k * (n - 1)) / (maxEtichette - 1)))
   // etichette dirette senza sovrapposizioni
-  const yEtichetta = serie.map((s) => { const u = [...s.valori].reverse().find((v) => v !== null); return u == null ? 0 : y(u) })
-  const ordine = yEtichetta.map((v, i) => [v, i] as const).sort((a, b) => a[0] - b[0])
-  for (let k = 1; k < ordine.length; k++) {
-    const [v0] = ordine[k - 1]; const [v1, i1] = ordine[k]
-    if (v1 - yEtichetta[ordine[k - 1][1]] < 12) yEtichetta[i1] = Math.max(v1, v0 + 12)
+  const yEtichetta = linee.map((v) => { const u = [...v].reverse().find((x) => x !== null); return u == null ? 0 : y(u) })
+  {
+    // distanzia le etichette (12 px) restando dentro il grafico
+    const ord = yEtichetta.map((_, i) => i).sort((a, b) => yEtichetta[a] - yEtichetta[b])
+    for (let k = 1; k < ord.length; k++) yEtichetta[ord[k]] = Math.max(yEtichetta[ord[k]], yEtichetta[ord[k - 1]] + 12)
+    const fondo = H - PB - 2
+    for (let k = ord.length - 1; k >= 0; k--) {
+      const limite = k === ord.length - 1 ? fondo : yEtichetta[ord[k + 1]] - 12
+      yEtichetta[ord[k]] = Math.max(PT + 4, Math.min(yEtichetta[ord[k]], limite))
+    }
   }
+  const punti = (v: (number | null)[]) => v.map((val, i) => (val === null ? null : [x(i), y(val)] as const)).filter((p): p is readonly [number, number] => p !== null)
   return (
     <div style={{ position: 'relative' }}>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={titolo} onMouseLeave={() => setHover(null)}>
@@ -41,18 +70,23 @@ export function GraficoLinee({ etichette, serie, formato, invertito = false, min
             <text x={PL - 6} y={y(t) + 3} fontSize={9.5} textAnchor="end" fill="var(--faint)">{formato(t)}</text>
           </g>
         ))}
-        {etichette.map((e, i) => (
-          <text key={i} x={x(i)} y={H - 8} fontSize={9} textAnchor="middle" fill={hover === i ? 'var(--text)' : 'var(--faint)'}>{e}</text>
+        {indiciX.map((i, k) => (
+          <text key={i} x={x(i)} y={H - 8} fontSize={9} textAnchor={k === 0 && n > 1 ? 'start' : k === indiciX.length - 1 && n > 1 ? 'end' : 'middle'} fill="var(--faint)">{etichette[i]}</text>
         ))}
         {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={PT} y2={H - PB} stroke="var(--faint)" strokeDasharray="3 3" />}
         {serie.map((s, si) => {
-          const pts = s.valori.map((v, i) => (v === null ? null : [x(i), y(v)] as const)).filter((p): p is readonly [number, number] => p !== null)
-          const ultimo = [...s.valori].reverse().find((v) => v !== null)
-          const iUltimo = s.valori.lastIndexOf(ultimo ?? null)
+          const grezzi = punti(s.valori)
+          const linea = punti(linee[si])
+          const ultimo = [...linee[si]].reverse().find((v) => v !== null)
+          const iUltimo = linee[si].lastIndexOf(ultimo ?? null)
           return (
             <g key={s.nome}>
-              <polyline fill="none" stroke={s.colore} strokeWidth={2} strokeDasharray={s.tratteggio ? '5 4' : undefined} strokeLinejoin="round" points={pts.map((p) => p.join(',')).join(' ')} />
-              {pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={s.tratteggio ? 3 : 4} fill={s.tratteggio ? 'var(--bg)' : s.colore} stroke={s.colore} strokeWidth={s.tratteggio ? 1.5 : 0} />)}
+              {denso && !s.tratteggio && grezzi.map((p, i) => <circle key={`g${i}`} cx={p[0]} cy={p[1]} r={1.9} fill={s.colore} opacity={0.38} />)}
+              <polyline fill="none" stroke={s.colore} strokeWidth={denso ? 2.4 : 2} strokeDasharray={s.tratteggio ? '5 4' : undefined} strokeLinejoin="round" strokeLinecap="round"
+                opacity={s.tratteggio && denso ? 0.7 : 1} points={linea.map((p) => p.join(',')).join(' ')} />
+              {!denso && linea.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={s.tratteggio ? 3 : 4} fill={s.tratteggio ? 'var(--bg)' : s.colore} stroke={s.colore} strokeWidth={s.tratteggio ? 1.5 : 0} />)}
+              {denso && ultimo != null && <circle cx={x(iUltimo)} cy={y(ultimo)} r={3.5} fill={s.colore} />}
+              {hover !== null && s.valori[hover] !== null && <circle cx={x(hover)} cy={y(s.valori[hover]!)} r={4.5} fill={s.colore} stroke="var(--bg)" strokeWidth={1.5} />}
               {ultimo !== undefined && ultimo !== null && (
                 <text x={x(iUltimo) + 8} y={yEtichetta[si] + 3} fontSize={10} fill="var(--muted)">{s.nome}</text>
               )}
@@ -66,16 +100,17 @@ export function GraficoLinee({ etichette, serie, formato, invertito = false, min
         ))}
       </svg>
       {hover !== null && (
-        <div className="tooltip-grafico" style={{ left: `${(x(hover) / W) * 100}%` }}>
+        <div className="tooltip-grafico" style={{ left: `${Math.min(80, Math.max(20, (x(hover) / W) * 100))}%` }}>
           <div className="t">{etichette[hover]}</div>
           {serie.map((s) => s.valori[hover] !== null && (
             <div key={s.nome}><i style={{ background: s.colore }} />{s.nome}: <b>{formato(s.valori[hover]!)}</b></div>
           ))}
         </div>
       )}
-      {serie.length > 1 && (
+      {(serie.length > 1 || denso) && (
         <div className="legenda-schema" style={{ marginTop: 4 }}>
           {serie.map((s) => <span key={s.nome}><i style={{ background: s.colore, height: 3 }} />{s.nome}{s.tratteggio ? ' (tratteggio)' : ''}</span>)}
+          {denso && <span style={{ color: 'var(--faint)' }}>linea: media di {finestra} gare · puntini: singole gare</span>}
         </div>
       )}
     </div>
