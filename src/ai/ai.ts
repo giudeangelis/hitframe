@@ -4,6 +4,7 @@
  */
 import { getImp, setImp } from '../db/db'
 import { richiesta } from '../lib/rete'
+import { ErroreSolaLettura, solaLettura } from '../licenza/licenza'
 
 export type Fornitore = 'claude' | 'gemini' | 'openai'
 
@@ -69,6 +70,7 @@ async function leggiErrore(r: Response): Promise<string> {
 
 /** Invia testo (e un'immagine facoltativa) e restituisce il testo della risposta. */
 export async function chiedi(cfg: ConfigAI, req: Richiesta): Promise<string> {
+  if (solaLettura()) throw new ErroreAI(new ErroreSolaLettura().message)
   const modello = cfg.modello.trim() || MODELLI_DEFAULT[cfg.fornitore]
   const maxToken = req.maxToken ?? 4000
   let r: Response

@@ -7,6 +7,9 @@ export function segnalaModifica() {
   for (const f of ascoltatori) f()
 }
 
+/** Una scrittura di sistema (sincronizzazione, uscita) è in corso. */
+export const inSospensione = () => sospese > 0
+
 export function suModifica(f: () => void) {
   ascoltatori.add(f)
   return () => { ascoltatori.delete(f) }

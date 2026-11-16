@@ -6,6 +6,7 @@ import { getAccount } from '../google/auth'
 import { avviaSincronizzazione } from '../sync/stato'
 import NuvolaSync from './NuvolaSync'
 import ChatAI from './ChatAI'
+import { BannerLicenza, GestoreLicenza } from '../licenza/ui'
 import { aggiornamentoDesktop } from '../lib/desktop'
 import { useToast, Wordmark } from './ui'
 
@@ -39,7 +40,13 @@ export default function Layout() {
       toast(n === 1 ? '1 modifica arrivata dagli altri dispositivi' : `${n} modifiche arrivate dagli altri dispositivi`)
     }
     window.addEventListener('hf-sync-ricevute', ricevute)
-    return () => window.removeEventListener('hf-sync-ricevute', ricevute)
+    // una scrittura rifiutata perché la prova è finita: lo diciamo invece di fallire in silenzio
+    const rifiuto = (e: PromiseRejectionEvent) => {
+      const m = String((e.reason as Error)?.message ?? e.reason ?? '')
+      if (/sola lettura/i.test(m)) { e.preventDefault(); toast('Sola lettura: inserisci una licenza in Impostazioni per salvare') }
+    }
+    window.addEventListener('unhandledrejection', rifiuto)
+    return () => { window.removeEventListener('hf-sync-ricevute', ricevute); window.removeEventListener('unhandledrejection', rifiuto) }
   }, [toast])
 
   const area = areaDi(pathname)
@@ -91,6 +98,7 @@ export default function Layout() {
             ))}
           </nav>
         )}
+        <BannerLicenza />
         <Outlet />
       </main>
 
@@ -103,6 +111,7 @@ export default function Layout() {
         ))}
       </nav>
       <ChatAI />
+      <GestoreLicenza />
     </div>
   )
 }

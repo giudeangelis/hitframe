@@ -5,6 +5,7 @@ import { esci, getAccount, leggiProfiloGoogle, setAccount } from '../google/auth
 import { allineaFlagCalendario } from '../google/calendar'
 import { scarica } from './drive'
 import { dimenticaBase, situazioneIniziale, usaDatiCloud, usaDatiLocali } from './motore'
+import { sospendiSegnalazioni } from './segnali'
 import { sincronizzaOra } from './stato'
 
 /* ---------- Copie di sicurezza (solo su questo dispositivo) ---------- */
@@ -86,6 +87,6 @@ export async function esciDalDispositivo() {
   try { await sincronizzaOra() } catch { /* ignore */ }
   await salvaCopia('Dati del dispositivo all’uscita')
   dimenticaBase()
-  await cancellaTutto()
+  await sospendiSegnalazioni(() => cancellaTutto())
   await esci()
 }

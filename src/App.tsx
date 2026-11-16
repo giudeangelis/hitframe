@@ -27,6 +27,7 @@ const StudioStage = lazy(() => import('./pages/StudioStage'))
 const Risultati = lazy(() => import('./pages/Risultati'))
 const Statistiche = lazy(() => import('./pages/Statistiche'))
 const Quadro = lazy(() => import('./pages/Quadro'))
+const PaginaLicenze = lazy(() => import('./licenza/ui').then((m) => ({ default: m.PaginaLicenze })))
 const Mente = lazy(() => import('./pages/Mente'))
 const RisultatoDettaglio = lazy(() => import('./pages/RisultatoDettaglio'))
 
@@ -97,6 +98,7 @@ function Applicazione() {
             <Route path="sessioni" element={<Sessioni />} />
             <Route path="gare" element={<Gare />} />
             <Route path="stage-designer/*" element={<Navigate to="/allenamento" replace />} />
+            <Route path="licenze" element={<Suspense fallback={<div className="page" />}><PaginaLicenze /></Suspense>} />
             <Route path="quadro" element={<Suspense fallback={<div className="page" />}><Quadro /></Suspense>} />
             <Route path="mente" element={<Suspense fallback={<div className="page" />}><Mente /></Suspense>} />
             <Route path="statistiche" element={<Suspense fallback={<div className="page" />}><Statistiche /></Suspense>} />

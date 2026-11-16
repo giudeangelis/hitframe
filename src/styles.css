@@ -600,3 +600,14 @@ table.colpi th { font-family: var(--display); letter-spacing: 1.5px; text-transf
 .drill-sessione { display: flex; flex-wrap: wrap; gap: 6px; margin: -4px 0 4px 64px; }
 .drill-sessione .chip { text-decoration: none; }
 .sessione-banner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 10px 12px; font-size: 14px; }
+/* ---------- 0.21 · Licenza e AI guidata ---------- */
+.banner-licenza { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 10px 14px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--border); color: var(--text); text-decoration: none; font-size: 14px; }
+.banner-licenza.bloccato { background: #e5ea1e; color: #14140a; border-color: #e5ea1e; }
+.banner-licenza svg { flex-shrink: 0; }
+.riga-prova { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12.5px; color: var(--muted); text-decoration: none; }
+.codice-licenza { display: block; padding: 10px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); font-size: 12px; word-break: break-all; user-select: all; }
+.passi-ai { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; font-size: 14.5px; line-height: 1.45; }
+.passi-ai li { padding-left: 4px; }
+.passi-ai li > span { display: block; }
+.passi-ai .btn { margin-top: 8px; }
+.passi-ai code { font-size: 13px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }

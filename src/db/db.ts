@@ -3,7 +3,8 @@ import type { StageAllenamento } from './types'
 import type { AnalisiGara, Arma, Componente, DrillPersonale, Evento, Impostazione, Intervento, Lotto, Profilo, Prova, Ricetta, SessioneCrono, VoceDiario } from './types'
 import type { RisultatoGara } from '../risultati/motore'
 import { ARMA_DEFAULT, RIFERIMENTI_DEFAULT, TEMPI_DEFAULT } from './types'
-import { nuovoId, segnalaModifica } from '../sync/segnali'
+import { inSospensione, nuovoId, segnalaModifica } from '../sync/segnali'
+import { ErroreSolaLettura, solaLettura } from '../licenza/licenza'
 
 export class HitframeDB extends Dexie {
   profilo!: EntityTable<Profilo, 'id'>
@@ -69,7 +70,10 @@ export const db = new HitframeDB()
  */
 for (const t of db.tables) {
   const pk = t.schema.primKey
+  // prova finita senza licenza: si consulta tutto ma non si scrive (le impostazioni restano libere per inserire la licenza)
+  const blocca = () => { if (solaLettura() && t.name !== 'impostazioni' && !inSospensione()) throw new ErroreSolaLettura() }
   t.hook('creating', function (chiave, obj) {
+    blocca()
     segnalaModifica()
     if (pk.auto && chiave === undefined && typeof pk.keyPath === 'string') {
       const id = nuovoId()
@@ -78,8 +82,8 @@ for (const t of db.tables) {
     }
     return undefined
   })
-  t.hook('updating', function () { segnalaModifica(); return undefined })
-  t.hook('deleting', function () { segnalaModifica() })
+  t.hook('updating', function () { blocca(); segnalaModifica(); return undefined })
+  t.hook('deleting', function () { blocca(); segnalaModifica() })
 }
 
 export const nowIso = () => new Date().toISOString()

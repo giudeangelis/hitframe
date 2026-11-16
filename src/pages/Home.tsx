@@ -14,6 +14,7 @@ import { fabbisogno, scorta } from '../munizioni/calcoli'
 import { profiloGara } from '../analisi/motore'
 import type { Evento, VoceDiario } from '../db/types'
 import { capitalize, fmtLungo, giorniDa, oggiKey, quando, toKey } from '../lib/date'
+import { RigaProva } from '../licenza/ui'
 
 export default function Home() {
   const oggi = oggiKey()
@@ -65,6 +66,7 @@ export default function Home() {
         <div>
           <h1>{nome ? `Ciao ${nome}` : 'Benvenuto'}</h1>
           <div className="sub">{capitalize(fmtLungo(oggi))}</div>
+          <RigaProva />
         </div>
         <AvvisiMateriale />
       </header>

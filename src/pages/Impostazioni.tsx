@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { ImpostazioniGoogle } from '../components/GoogleSync'
 import ImpostazioniAI from '../components/ImpostazioniAI'
 import ImpostazioniAccount from '../components/ImpostazioniAccount'
+import { SezioneLicenza } from '../licenza/ui'
 import { getAccount } from '../google/auth'
 import { sincronizzaOra } from '../sync/stato'
 import { AppComputer } from '../components/AppComputer'
@@ -43,6 +44,8 @@ export default function Impostazioni() {
       <PageHeader title="Impostazioni" sub={getAccount() ? 'Dati sincronizzati con il tuo Google Drive' : 'I tuoi dati restano su questo dispositivo'} />
 
       <ImpostazioniAccount />
+
+      <SezioneLicenza />
 
       <section className="card form">
         <div className="card-title" style={{ marginBottom: 0 }}>Backup manuale</div>
@@ -84,7 +87,7 @@ export default function Impostazioni() {
         )}
       </section>
 
-      <p className="prose" style={{ fontSize: 12, textAlign: 'center' }}>Hitframe · versione 0.20.0 · © {new Date().getFullYear()} Giuseppe De Angelis</p>
+      <p className="prose" style={{ fontSize: 12, textAlign: 'center' }}>Hitframe · versione 0.21.0 · © {new Date().getFullYear()} Giuseppe De Angelis</p>
     </div>
   )
 }
