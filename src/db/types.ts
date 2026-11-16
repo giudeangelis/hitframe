@@ -203,7 +203,9 @@ export interface AnalisiGara {
   id?: number
   creato: string
   nomeFile: string
-  pdf: Blob | null // null dopo un ripristino da backup
+  pdf: Blob | null // null dopo un ripristino da backup, o finché non arriva dal Drive
+  /** Id del PDF nel Google Drive dell'utente (cartella nascosta dell'app), per gli altri dispositivi */
+  pdfDrive?: string | null
   lettura: import('../analisi/tipi').GaraLetta
   sezione: number // libretto scelto (es. Handgun o PCC)
   eventoId: number | null

@@ -89,8 +89,64 @@ export async function carica(testo: string, id?: string): Promise<FileRemoto> {
   return r.json()
 }
 
-/** Cancella i dati dal Drive (per "Elimina i dati dal cloud"). */
+/* ---------- PDF delle analisi di gara (un file per PDF, nella stessa cartella nascosta) ---------- */
+
+export interface FilePdf { id: string; name: string; modifiedTime: string }
+
+/** Carica un PDF e restituisce l'id del file nel Drive. */
+export async function caricaPdf(pdf: Blob, nome: string): Promise<string> {
+  const meta = { name: nome, parents: ['appDataFolder'], mimeType: 'application/pdf', appProperties: { hf: 'pdf' } }
+  const b = `hf${crypto.randomUUID().replace(/-/g, '')}`
+  const corpo = new Blob([
+    `--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n`,
+    `--${b}\r\nContent-Type: application/pdf\r\n\r\n`,
+    pdf,
+    `\r\n--${b}--`,
+  ])
+  const r = await chiama(`${UPLOAD}/files?uploadType=multipart&fields=id`, {
+    method: 'POST',
+    headers: { 'Content-Type': `multipart/related; boundary=${b}` },
+    body: corpo,
+  })
+  return ((await r.json()) as { id: string }).id
+}
+
+/** Scarica un PDF; null se nel Drive non c'è più. */
+export async function scaricaPdf(id: string): Promise<Blob | null> {
+  try {
+    const r = await chiama(`${API}/files/${id}?alt=media`)
+    return new Blob([await r.arrayBuffer()], { type: 'application/pdf' })
+  } catch (e) {
+    if (e instanceof Error && /\(404\)/.test(e.message)) return null
+    throw e
+  }
+}
+
+export async function elencaPdf(): Promise<FilePdf[]> {
+  const out: FilePdf[] = []
+  let pagina: string | undefined
+  do {
+    const q = new URLSearchParams({
+      spaces: 'appDataFolder',
+      q: "appProperties has { key='hf' and value='pdf' } and trashed=false",
+      fields: 'nextPageToken,files(id,name,modifiedTime)',
+      pageSize: '200',
+    })
+    if (pagina) q.set('pageToken', pagina)
+    const j = await (await chiama(`${API}/files?${q}`)).json() as { files: FilePdf[]; nextPageToken?: string }
+    out.push(...j.files)
+    pagina = j.nextPageToken
+  } while (pagina)
+  return out
+}
+
+export async function eliminaFile(id: string) {
+  await chiama(`${API}/files/${id}`, { method: 'DELETE' })
+}
+
+/** Cancella i dati dal Drive (per "Elimina i dati dal cloud"), PDF compresi. */
 export async function eliminaRemoto() {
   const f = await trovaFile()
   if (f) await chiama(`${API}/files/${f.id}`, { method: 'DELETE' })
+  for (const p of await elencaPdf()) await eliminaFile(p.id)
 }

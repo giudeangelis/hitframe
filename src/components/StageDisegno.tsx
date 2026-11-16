@@ -14,8 +14,8 @@ function documento(id: number, pdf: Blob): Promise<PDFDocumentProxy> {
   return p
 }
 
-export default function StageDisegno({ analisiId, pdf, pagina, tagliaY, alt }: {
-  analisiId: number; pdf: Blob | null; pagina: number; tagliaY: number; alt: string
+export default function StageDisegno({ analisiId, pdf, pagina, tagliaY, alt, messaggio }: {
+  analisiId: number; pdf: Blob | null; pagina: number; tagliaY: number; alt: string; messaggio?: string
 }) {
   const box = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -39,7 +39,7 @@ export default function StageDisegno({ analisiId, pdf, pagina, tagliaY, alt }: {
   }, [analisiId, pdf, pagina, tagliaY])
 
   if (!pdf) {
-    return <div className="disegno vuoto">Disegno non disponibile: il PDF non è incluso nei backup. Ricaricalo per vederlo.</div>
+    return <div className="disegno vuoto">{messaggio ?? 'Disegno non disponibile: ricarica il PDF della gara per vederlo.'}</div>
   }
   return (
     <div ref={box} className="disegno">

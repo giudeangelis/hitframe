@@ -8,6 +8,7 @@ import { useSyncExternalStore } from 'react'
 import { AccessoRichiesto, avviaAccesso, getAccount, googleRaggiungibile, puoRinnovareDaSolo, rinnovaSilenzioso, tokenValido } from '../google/auth'
 import { leggiBase, modificheInSospeso, sincronizza } from './motore'
 import { suModifica } from './segnali'
+import { allineaPdf } from './pdf'
 
 export type Fase = 'spento' | 'ok' | 'in-corso' | 'in-attesa' | 'offline' | 'accesso' | 'errore'
 
@@ -65,6 +66,8 @@ export function sincronizzaOra(): Promise<void> {
     imposta({ fase: 'in-corso', messaggio: '' })
     try {
       const r = await sincronizza()
+      // i PDF delle gare: quelli nuovi vanno nel Drive, poi l'id arriva agli altri dispositivi
+      try { if (await allineaPdf()) await sincronizza() } catch (e) { console.warn('PDF nel Drive non riusciti', e) }
       const ora = new Date().toISOString()
       try { localStorage.setItem(K_ULTIMA, ora) } catch { /* ignore */ }
       imposta({ fase: 'ok', ultima: ora, ricevute: r.ricevute })

@@ -1,4 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
+import { MSG_PDF, usePdfAnalisi } from '../sync/pdf'
 import { AlertTriangle, ArrowLeft, Check, ClipboardCheck, Dumbbell, Hand, MapPinned, Pencil, Sparkles, Zap } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
@@ -30,6 +31,7 @@ export default function StudioStage() {
   const chiave = a ? chiaveMappa(a.sezione, numero) : ''
   const salvata = a?.mappe?.[chiave]
   const mappa = bozza ?? salvata ?? null
+  const statoPdf = usePdfAnalisi(a)
 
   useEffect(() => {
     if (!a?.pdf || !s) return
@@ -162,7 +164,7 @@ export default function StudioStage() {
       )}
 
       {!a.pdf ? (
-        <div className="card">Il disegno non è disponibile: il PDF non è incluso nei backup. Ricarica il PDF della gara per studiarla.</div>
+        <div className="card">{statoPdf === 'pronto' ? 'Carico il disegno…' : MSG_PDF[statoPdf]}</div>
       ) : erroreImg ? (
         <div className="card">Non riesco a mostrare il disegno.</div>
       ) : !img ? (

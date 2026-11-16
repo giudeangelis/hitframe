@@ -1,4 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
+import { MSG_PDF, usePdfAnalisi } from '../sync/pdf'
 import { ListChecks, MapPinned } from 'lucide-react'
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -21,6 +22,7 @@ function DisegnoStage({ rif }: { rif: NonNullable<DrillPersonale['stage']> }) {
   const sez = a ? a.lettura.sezioni[a.sezione] ?? a.lettura.sezioni[0] : null
   const s = sez?.stages.find((x) => x.numero === rif.numero)
   const mappa = a?.mappe?.[chiaveMappa(a.sezione, rif.numero)]
+  const statoPdf = usePdfAnalisi(a)
   useEffect(() => {
     if (!a?.pdf || !s) return
     let ok = true
@@ -29,7 +31,7 @@ function DisegnoStage({ rif }: { rif: NonNullable<DrillPersonale['stage']> }) {
   }, [a?.id, a?.pdf, s?.pagina, s?.tabellaTopY]) // eslint-disable-line react-hooks/exhaustive-deps
   const piano = useMemo(() => (mappa && s && profilo ? calcolaPiano(mappa, s, profilo, rif.stile) : null), [mappa, s, profilo, rif.stile])
   if (!a || !s) return <p className="prose" style={{ margin: 0 }}>L’analisi della gara di questo stage non c’è più.</p>
-  if (!img || !mappa) return <p className="prose" style={{ margin: 0 }}>{a.pdf ? 'Carico il disegno…' : 'Il disegno non è disponibile: ricarica il PDF della gara.'}</p>
+  if (!img || !mappa) return <p className="prose" style={{ margin: 0 }}>{statoPdf === 'pronto' ? 'Carico il disegno…' : MSG_PDF[statoPdf]}</p>
   const sovra = piano ? {
     punti: [mappa.partenza, ...piano.percorso.map((pid) => mappa.posizioni.find((p) => p.id === pid)!)].map((p) => ({ x: p.x, y: p.y, etichetta: p.id })),
     ordine: piano.ordine, inMovimento: piano.inMovimento, ricariche: piano.ricariche,

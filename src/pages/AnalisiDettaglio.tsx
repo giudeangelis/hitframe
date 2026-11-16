@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import EventoForm from '../components/EventoForm'
 import PianoForm from '../components/PianoForm'
 import StageDisegno from '../components/StageDisegno'
+import { MSG_PDF, usePdfAnalisi } from '../sync/pdf'
 import { Segmented, useToast } from '../components/ui'
 import { leggiDateGara } from '../analisi/date'
 import { carte, fmtHf, fmtS, focusAllenamento, metalli, partenzaSpeciale, profiloGara, stimaStage, type StimaStage } from '../analisi/motore'
@@ -24,6 +25,7 @@ export default function AnalisiDettaglio() {
   const toast = useToast()
   const analisiId = Number(id)
   const a = useLiveQuery(() => db.analisi.get(analisiId), [analisiId])
+  const statoPdf = usePdfAnalisi(a)
   const profilo = useLiveQuery(async () => normalizzaProfilo(await db.profilo.get('me')))
   const evento = useLiveQuery(async () => (a?.eventoId ? (await db.eventi.get(a.eventoId)) ?? null : null), [a?.eventoId])
   const [aperto, setAperto] = useState<number | null>(null)
@@ -191,7 +193,7 @@ export default function AnalisiDettaglio() {
         <div className="nav-section" style={{ padding: '4px 2px' }}>Stage</div>
         {stages.map((s, i) => (
           <StageCard key={`${a.sezione}-${s.numero}`} s={s} stima={stime[i]} aperto={aperto === s.numero}
-            onToggle={() => setAperto(aperto === s.numero ? null : s.numero)} analisiId={analisiId} pdf={a.pdf}
+            onToggle={() => setAperto(aperto === s.numero ? null : s.numero)} analisiId={analisiId} pdf={a.pdf} msgPdf={statoPdf === 'pronto' ? undefined : MSG_PDF[statoPdf]}
             haMappa={!!a.mappe?.[`${a.sezione}-${s.numero}`]} />
         ))}
       </section>
@@ -222,8 +224,8 @@ export default function AnalisiDettaglio() {
   )
 }
 
-function StageCard({ s, stima, aperto, onToggle, analisiId, pdf, haMappa }: {
-  s: StageLetto; stima?: StimaStage; aperto: boolean; onToggle: () => void; analisiId: number; pdf: Blob | null; haMappa: boolean
+function StageCard({ s, stima, aperto, onToggle, analisiId, pdf, haMappa, msgPdf }: {
+  s: StageLetto; stima?: StimaStage; aperto: boolean; onToggle: () => void; analisiId: number; pdf: Blob | null; haMappa: boolean; msgPdf?: string
 }) {
   const nMet = metalli(s)
   const speciali = partenzaSpeciale(s)
@@ -254,7 +256,7 @@ function StageCard({ s, stima, aperto, onToggle, analisiId, pdf, haMappa }: {
       {aperto && (
         <div className="stage-body">
           <Link to={`/analisi-gara/${analisiId}/stage/${s.numero}`} className="btn primary" style={{ alignSelf: 'flex-start' }}><MapPinned size={18} /> {haMappa ? 'Apri lo studio dello stage' : 'Studia lo stage'}</Link>
-          <StageDisegno analisiId={analisiId} pdf={pdf} pagina={s.pagina} tagliaY={s.tabellaTopY} alt={`Disegno dello stage ${s.numero}`} />
+          <StageDisegno analisiId={analisiId} pdf={pdf} pagina={s.pagina} tagliaY={s.tabellaTopY} alt={`Disegno dello stage ${s.numero}`} messaggio={msgPdf} />
           {stima && (
             <div className="stima-righe">
               <div><Timer size={14} /> Obiettivo <b>{fmtS(stima.obiettivo)}</b></div>
