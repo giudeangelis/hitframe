@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { FileSearch, FileUp, Loader2 } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Empty, PageHeader } from '../components/ui'
 import { importaPdf } from '../analisi/importa'
 import { db } from '../db/db'
@@ -13,13 +13,16 @@ export default function AnalisiGare() {
   const [errore, setErrore] = useState('')
   const [trascina, setTrascina] = useState(false)
   const analisi = useLiveQuery(() => db.analisi.orderBy('creato').reverse().toArray()) ?? []
+  const [sp] = useSearchParams()
+  const eventoId = Number(sp.get('evento')) || null
+  const gara = useLiveQuery(async () => (eventoId ? (await db.eventi.get(eventoId)) ?? null : null), [eventoId])
 
   async function carica(file: File | undefined) {
     if (!file) return
     setErrore('')
     setLettura(true)
     try {
-      const id = await importaPdf(file)
+      const id = await importaPdf(file, gara?.id ?? null)
       nav(`/analisi-gara/${id}`)
     } catch (e) {
       setErrore(e instanceof Error ? e.message : 'Lettura non riuscita.')
@@ -47,7 +50,7 @@ export default function AnalisiGare() {
           <>
             <FileUp size={34} color="var(--accent)" />
             <div className="title">PDF della gara (briefing FITDS)</div>
-            <div className="meta">Funziona offline: il file resta su questo dispositivo.</div>
+            <div className="meta">{gara ? <>Lo collego alla gara <b>{gara.titolo}</b>.</> : 'Funziona offline e arriva anche sugli altri tuoi dispositivi.'}</div>
             <button className="btn primary" onClick={() => fileRef.current?.click()}><FileUp size={18} /> Scegli PDF</button>
           </>
         )}

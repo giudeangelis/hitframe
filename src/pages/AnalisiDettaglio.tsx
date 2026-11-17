@@ -6,6 +6,7 @@ import EventoForm from '../components/EventoForm'
 import PianoForm from '../components/PianoForm'
 import StageDisegno from '../components/StageDisegno'
 import { MSG_PDF, usePdfAnalisi } from '../sync/pdf'
+import { propostaGara } from '../analisi/collega'
 import { Segmented, useToast } from '../components/ui'
 import { leggiDateGara } from '../analisi/date'
 import { carte, fmtHf, fmtS, focusAllenamento, metalli, partenzaSpeciale, profiloGara, stimaStage, type StimaStage } from '../analisi/motore'
@@ -28,6 +29,11 @@ export default function AnalisiDettaglio() {
   const statoPdf = usePdfAnalisi(a)
   const profilo = useLiveQuery(async () => normalizzaProfilo(await db.profilo.get('me')))
   const evento = useLiveQuery(async () => (a?.eventoId ? (await db.eventi.get(a.eventoId)) ?? null : null), [a?.eventoId])
+  const proposta = useLiveQuery(async () => (a && !a.eventoId ? propostaGara(a) : null), [a])
+  const gareCal = useLiveQuery(async () => {
+    const da = new Date(Date.now() - 120 * 86_400_000).toISOString().slice(0, 10)
+    return (await db.eventi.where('data').aboveOrEqual(da).filter((e) => e.tipo === 'gara').toArray()).sort((x, y) => x.data.localeCompare(y.data))
+  }) ?? []
   const [aperto, setAperto] = useState<number | null>(null)
   const [nuovoEvento, setNuovoEvento] = useState<Evento | null>(null)
   const [confermaElimina, setConfermaElimina] = useState(false)
@@ -123,17 +129,40 @@ export default function AnalisiDettaglio() {
         </div>
       )}
 
+      {!evento && proposta && (
+        <div className="card">
+          <div className="title">È il PDF di <b>{proposta.evento.titolo}</b> del {quando(proposta.evento.data)}?</div>
+          <div className="row" style={{ marginTop: 10 }}>
+            <button className="btn primary" onClick={() => db.analisi.update(analisiId, { eventoId: proposta.evento.id! })}>Sì, collegala</button>
+            <button className="btn ghost" onClick={() => db.analisi.update(analisiId, { eventiRifiutati: [...(a.eventiRifiutati ?? []), proposta.evento.id!] })}>No</button>
+          </div>
+        </div>
+      )}
       <div className="row">
         {evento ? (
-          <Link to="/calendario" className="item" style={{ flex: 1 }}>
-            <CalendarCheck size={20} color="var(--gara)" />
-            <div style={{ flex: 1 }}>
-              <div className="title">In calendario</div>
-              <div className="meta">{evento.titolo} · {quando(evento.data)}</div>
-            </div>
-          </Link>
+          <>
+            <Link to="/calendario" className="item" style={{ flex: 1 }}>
+              <CalendarCheck size={20} color="var(--gara)" />
+              <div style={{ flex: 1 }}>
+                <div className="title">Collegata alla gara in calendario</div>
+                <div className="meta">{evento.titolo} · {quando(evento.data)}</div>
+              </div>
+            </Link>
+            <button className="btn ghost" onClick={() => db.analisi.update(analisiId, { eventoId: null, eventiRifiutati: [...(a.eventiRifiutati ?? []), evento.id!] })}>Scollega</button>
+          </>
         ) : (
-          <button className="btn primary" onClick={preparaEvento}><CalendarPlus size={18} /> Aggiungi al calendario</button>
+          <>
+            <button className="btn primary" onClick={preparaEvento}><CalendarPlus size={18} /> Aggiungi al calendario</button>
+            {gareCal.length > 0 && (
+              <label className="field" style={{ flex: 1, minWidth: 200 }}>
+                <span className="sr-only">Collega a una gara già in calendario</span>
+                <select value="" onChange={(e) => { const id = Number(e.target.value); if (id) void db.analisi.update(analisiId, { eventoId: id }) }}>
+                  <option value="">…oppure collega a una gara già in calendario</option>
+                  {gareCal.map((g) => <option key={g.id} value={g.id}>{g.titolo} · {quando(g.data)}</option>)}
+                </select>
+              </label>
+            )}
+          </>
         )}
       </div>
 

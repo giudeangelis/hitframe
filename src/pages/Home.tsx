@@ -1,7 +1,8 @@
 import { addDays } from 'date-fns'
+import { collegaAnalisiPerGara } from '../analisi/collega'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { AlertTriangle, BellRing, Package, Wrench, BookOpen, FileSearch, PenLine, Timer as TimerIcon, Trophy, UserRound } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import DiarioForm from '../components/DiarioForm'
 import EventoForm from '../components/EventoForm'
@@ -45,6 +46,10 @@ export default function Home() {
     [prossimaGara?.id],
   )
   const giorniGara = prossimaGara ? giorniDa(prossimaGara.data) : null
+  // un PDF già caricato (anche da un altro dispositivo) per questa gara: lo collega da solo
+  useEffect(() => {
+    if (prossimaGara?.id && analisiGara === null) void collegaAnalisiPerGara(prossimaGara.id).catch(() => null)
+  }, [prossimaGara?.id, analisiGara])
 
   // Promemoria iscrizioni: aperture e scadenze nei prossimi 30 giorni, per gare non ancora iscritte
   const iscrizioni = (useLiveQuery(() =>
@@ -106,7 +111,7 @@ export default function Home() {
             {analisiGara ? (
               <Link to={`/analisi-gara/${analisiGara.id}`} className="btn"><FileSearch size={18} /> Apri analisi gara</Link>
             ) : (
-              <Link to="/analisi-gara" className="btn"><FileSearch size={18} /> Carica il PDF della gara</Link>
+              <Link to={`/analisi-gara?evento=${prossimaGara.id}`} className="btn"><FileSearch size={18} /> Carica il PDF della gara</Link>
             )}
           </div>
         )}

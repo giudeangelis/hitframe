@@ -209,6 +209,8 @@ export interface AnalisiGara {
   lettura: import('../analisi/tipi').GaraLetta
   sezione: number // libretto scelto (es. Handgun o PCC)
   eventoId: number | null
+  /** Gare che l'utente ha detto non essere questa (per non riproporle) */
+  eventiRifiutati?: number[]
   /** Mappe degli stage, chiave "sezione-numero" */
   mappe?: Record<string, import('../analisi/mappa').MappaStage>
 }
