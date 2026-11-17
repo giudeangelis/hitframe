@@ -110,6 +110,9 @@ export default function ImpostazioniAI() {
             <summary>Usi Claude o ChatGPT?</summary>
             <div className="form" style={{ marginTop: 8 }}>
               <p className="prose" style={{ margin: 0, fontSize: 13 }}>
+                <b>Consigliati per lo studio degli stage:</b> leggono i disegni di gara molto meglio di Gemini gratuito. Per il resto (coach, diario, obiettivi) Gemini va benissimo.
+              </p>
+              <p className="prose" style={{ margin: 0, fontSize: 13 }}>
                 Funzionano con una chiave a credito prepagato (l’abbonamento alla chat non basta): <a href={LINK_CHIAVI.claude} target="_blank" rel="noreferrer">chiave Claude</a> · <a href={LINK_CHIAVI.openai} target="_blank" rel="noreferrer">chiave ChatGPT</a>. Incollala sopra: il fornitore si riconosce da solo.
               </p>
               <div className="fields-2">

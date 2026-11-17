@@ -6,7 +6,7 @@ import { Link, useParams } from 'react-router-dom'
 import StageMappa, { type Sovrapposizione } from '../components/StageMappa'
 import { Segmented, useToast } from '../components/ui'
 import { getConfigAI } from '../ai/ai'
-import { chiaveMappa, immagineDisegno, mappaVuota, proponiMappaAI, type MappaStage } from '../analisi/mappa'
+import { chiaveMappa, immagineDisegno, mappaVuota, proponiMappaAI, rifinisciMappaAI, type Dubbio, type MappaStage } from '../analisi/mappa'
 import { fmtHf, fmtS, partenzaSpeciale, stimaStage } from '../analisi/motore'
 import { calcolaPiano, consiglio, type Piano, type Stile } from '../analisi/piano'
 import { db, normalizzaProfilo, nowIso } from '../db/db'
@@ -25,6 +25,8 @@ export default function StudioStage() {
   const [aiInCorso, setAiInCorso] = useState(false)
   const [erroreAi, setErroreAi] = useState('')
   const [stile, setStile] = useState<Stile | null>(null)
+  const [dubbi, setDubbi] = useState<Dubbio[] | null>(null)
+  const [risposte, setRisposte] = useState<Record<string, string>>({})
 
   const sez = a ? a.lettura.sezioni[a.sezione] ?? a.lettura.sezioni[0] : null
   const s = sez?.stages.find((x) => x.numero === numero)
@@ -79,12 +81,30 @@ export default function StudioStage() {
     setErroreAi('')
     setAiInCorso(true)
     try {
-      const m = await proponiMappaAI(img, s!)
-      await salvaMappa(m)
-      setBozza(null)
-      toast('Mappa proposta dall’AI: controllala')
+      const r = await proponiMappaAI(img, s!)
+      setBozza(r.mappa)
+      setRisposte({})
+      setDubbi(r.dubbi.length ? r.dubbi : null)
+      toast(r.dubbi.length ? 'Bozza pronta: rispondi alle domande' : 'Bozza pronta: controllala e salva')
     } catch (e) {
       setErroreAi(e instanceof Error ? e.message : 'Proposta non riuscita')
+    } finally {
+      setAiInCorso(false)
+    }
+  }
+
+  async function applicaRisposte() {
+    if (!img || !bozza || !dubbi) return
+    const date = dubbi.filter((d) => risposte[d.id] && risposte[d.id] !== 'Non so').map((d) => ({ domanda: d.domanda, risposta: risposte[d.id] }))
+    if (!date.length) { setDubbi(null); return }
+    setErroreAi('')
+    setAiInCorso(true)
+    try {
+      setBozza(await rifinisciMappaAI(img, s!, bozza, date))
+      setDubbi(null)
+      toast('Bozza corretta con le tue risposte: controllala e salva')
+    } catch (e) {
+      setErroreAi(e instanceof Error ? e.message : 'Correzione non riuscita')
     } finally {
       setAiInCorso(false)
     }
@@ -182,7 +202,8 @@ export default function StudioStage() {
             <>
               <p className="prose" style={{ margin: 0 }}>
                 Per il piano servono partenza, posizioni di tiro e bersagli sul disegno.
-                {ai?.chiave ? ' L’AI li propone in pochi secondi, poi tu li controlli.' : ' Collega un’AI in Impostazioni per una proposta automatica, oppure segnali a mano.'}
+                {ai?.chiave ? ' L’AI li propone in pochi secondi, ti fa un paio di domande e poi tu controlli la bozza.' : ' Collega un’AI in Impostazioni per una proposta automatica, oppure segnali a mano.'}
+                {ai?.fornitore === 'gemini' && ' Con Gemini gratuito la lettura dei disegni è meno precisa: rispondi bene alle domande, o collega Claude o ChatGPT.'}
               </p>
               <div className="row">
                 {ai?.chiave
@@ -194,13 +215,44 @@ export default function StudioStage() {
           )}
           {erroreAi && <div role="alert" className="card avviso"><AlertTriangle size={18} color="var(--accent)" /> {erroreAi}</div>}
 
+          {bozza && dubbi && (
+            <div className="dubbi">
+              <div className="title">Prima del piano, {dubbi.length === 1 ? 'una domanda rapida' : `${dubbi.length} domande rapide`}</div>
+              <p className="prose" style={{ margin: 0, fontSize: 13 }}>Il disegno non ha misure: le tue risposte valgono più di qualsiasi lettura automatica.</p>
+              {dubbi.map((d) => (
+                <fieldset key={d.id} className="dubbio">
+                  <legend>{d.domanda}</legend>
+                  <div className="chips">
+                    {[...d.opzioni, 'Non so'].map((o) => (
+                      <button key={o} type="button" className={`chip${risposte[d.id] === o ? ' on' : ''}`} aria-pressed={risposte[d.id] === o}
+                        onClick={() => setRisposte({ ...risposte, [d.id]: o })}>{o}</button>
+                    ))}
+                  </div>
+                </fieldset>
+              ))}
+              <div className="row">
+                <button className="btn ghost" onClick={() => setDubbi(null)} disabled={aiInCorso}>Salta</button>
+                <div className="spacer" />
+                <button className="btn primary" onClick={applicaRisposte} disabled={aiInCorso || !Object.keys(risposte).length}>
+                  <Sparkles size={18} className={aiInCorso ? 'spin' : ''} /> {aiInCorso ? 'Correggo la bozza…' : 'Correggi la bozza'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {bozza && !dubbi && bozza.fonte === 'ai' && (
+            <p className="prose" style={{ margin: 0, fontSize: 13 }}><b>Controlla la bozza:</b> trascina bersagli e posizioni dove sono davvero, poi salva. Il piano parte da qui.</p>
+          )}
+
           {mappa && <StageMappa img={img} mappa={mappa} onChange={bozza ? setBozza : undefined} modifica={!!bozza} sovra={sovra} />}
+
+          {bozza?.lettura && <p className="prose" style={{ margin: 0, fontSize: 14 }}><b>Lettura AI:</b> {bozza.lettura}</p>}
 
           {bozza && (
             <div className="row">
               {ai?.chiave && <button className="btn ghost" onClick={proponi} disabled={aiInCorso}><Sparkles size={16} /> {aiInCorso ? 'In corso…' : 'Riproponi con AI'}</button>}
               <div className="spacer" />
-              <button className="btn" onClick={() => setBozza(null)}>Annulla</button>
+              <button className="btn" onClick={() => { setBozza(null); setDubbi(null) }}>Annulla</button>
               <button className="btn primary" onClick={async () => { await salvaMappa({ ...bozza, aggiornata: nowIso() }); setBozza(null); toast('Mappa salvata') }}
                 disabled={!bozza.posizioni.length || !bozza.bersagli.length}><Check size={18} /> Salva mappa</button>
             </div>

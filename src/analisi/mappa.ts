@@ -133,21 +133,22 @@ const SISTEMA = `Sei un tiratore IPSC di livello Grand Master e Range Officer es
 FITDS) e ne ricavi una mappa tecnica. Nelle gare FITDS i bersagli stanno tra 3 e 20 metri dal tiratore.
 Rispondi SOLO con un oggetto JSON valido, senza testo prima o dopo.`
 
-export async function proponiMappaAI(img: { url: string }, s: StageLetto): Promise<MappaStage> {
-  const cfg = await getConfigAI()
-  if (!cfg?.chiave) throw new ErroreAI('Collega un assistente AI in Impostazioni.')
+export interface Dubbio { id: string; domanda: string; opzioni: string[] }
+export interface PropostaAI { mappa: MappaStage; dubbi: Dubbio[] }
+
+function testoBriefing(s: StageLetto) {
   const b = s.bersagli
-  const testo = `Dati letti dal briefing dello stage ${s.numero}:
+  return `Dati letti dal briefing dello stage ${s.numero}:
 - Tipo: ${s.tipo} course, colpi minimi ${s.colpi}, punti ${s.puntiMax}
 - Bersagli: ${b.carta} carta, ${b.miniCarta} mini carta, ${b.popper} popper, ${b.miniPopper} mini popper, ${b.piastre} piastre, ${b.noShoot} no-shoot
 - Etichette visibili nel disegno: ${s.etichetteDisegno.join(' ') || 'non lette'}
 - Posizione di partenza: ${s.posizionePartenza}
 - Condizione di pronto: ${s.prontoTiratore} / ${s.prontoArma}
 - Procedura: ${s.procedura}
-- Note: ${s.note}
+- Note: ${s.note}`
+}
 
-Analizza l'immagine del disegno e restituisci questo JSON:
-{
+const SCHEMA = `{
   "lettura": "2-3 frasi: come è fatto lo stage, ripari, aree di tiro, insidie",
   "larghezzaM": numero (metri di larghezza del campo rappresentati nell'immagine),
   "profonditaM": numero (metri di profondità dal fondo dei bersagli alla zona di partenza),
@@ -157,13 +158,70 @@ Analizza l'immagine del disegno e restituisci questo JSON:
                 "distanza": metri dalla posizione più vicina da cui si ingaggia (3-20),
                 "parziale": true se coperto in parte da no-shoot o ostacoli, "mobile": true se si muove,
                 "attiva": ["id dei bersagli che attiva, se è un attivatore"]}]
-}
-Regole:
+}`
+
+const REGOLE = `Regole:
 - x,y sono coordinate normalizzate sull'immagine fornita: (0,0) in alto a sinistra, (1,1) in basso a destra. Per i bersagli usa il punto centrale; per le posizioni il punto a terra dove sta il tiratore.
 - Usa gli id del disegno se leggibili (T1, PP1, MP1, PL1, NS1...); altrimenti numerali da sinistra a destra.
 - Il numero di bersagli per tipo deve corrispondere ai dati del briefing.
 - Le posizioni sono i punti utili da cui sparare (aree delimitate da fault line, finestre, porte, angoli dei ripari). Includi la zona di partenza come posizione se da lì si vedono bersagli.
 - "vede" elenca solo i bersagli realmente ingaggiabili da quella posizione, tenendo conto di pareti e ripari.`
+
+function leggiDubbi(raw: unknown): Dubbio[] {
+  if (!Array.isArray(raw)) return []
+  return raw.slice(0, 3).flatMap((d, i) => {
+    const o = d as Record<string, unknown>
+    const opzioni = Array.isArray(o?.opzioni) ? o.opzioni.map(String).filter(Boolean).slice(0, 4) : []
+    const domanda = typeof o?.domanda === 'string' ? o.domanda.trim() : ''
+    return domanda && opzioni.length >= 2 ? [{ id: `d${i + 1}`, domanda, opzioni }] : []
+  })
+}
+
+/** Prima lettura del disegno: una bozza di mappa e fino a 3 domande sui punti che il disegno non chiarisce. */
+export async function proponiMappaAI(img: { url: string }, s: StageLetto): Promise<PropostaAI> {
+  const cfg = await getConfigAI()
+  if (!cfg?.chiave) throw new ErroreAI('Collega un assistente AI in Impostazioni.')
+  const testo = `${testoBriefing(s)}
+
+I disegni FITDS non hanno misure e mescolano pianta e prospettiva: dove non sei sicuro, fai la scelta più probabile
+e segnala il dubbio. Analizza l'immagine del disegno e restituisci questo JSON:
+${SCHEMA.slice(0, -2)},
+  "dubbi": [{"domanda": "domanda breve al tiratore", "opzioni": ["risposta A", "risposta B", "risposta C"]}]
+}
+${REGOLE}
+- "dubbi": da 1 a 3 domande a scelta rapida (2-4 opzioni brevi) sui punti che il disegno non chiarisce e che cambiano il piano:
+  da quale posizione si vede un bersaglio, distanza dei bersagli più lontani, quanto il no-shoot copre, dove si parte davvero.
+  Chiedi sempre la distanza indicativa dei bersagli più lontani (es. "meno di 10 m", "10–15 m", "oltre 15 m").
+  Cita i bersagli con i loro id (T1, PP1...) e una descrizione di dove sono ("il popper in alto a sinistra").`
+  const risposta = await chiedi(cfg, {
+    sistema: SISTEMA,
+    testo,
+    immagine: { mime: 'image/jpeg', base64: img.url.split(',')[1] },
+    maxToken: 4500,
+  })
+  const raw = estraiJson(risposta) as Record<string, unknown>
+  const m = normalizza(raw, 'ai')
+  if (!m.bersagli.length) throw new ErroreAI('L’AI non ha trovato bersagli nel disegno. Prova a mappare a mano.')
+  return { mappa: m, dubbi: leggiDubbi(raw.dubbi) }
+}
+
+/** Corregge la bozza con le risposte del tiratore. */
+export async function rifinisciMappaAI(img: { url: string }, s: StageLetto, bozza: MappaStage, risposte: { domanda: string; risposta: string }[]): Promise<MappaStage> {
+  const cfg = await getConfigAI()
+  if (!cfg?.chiave) throw new ErroreAI('Collega un assistente AI in Impostazioni.')
+  const { fonte: _f, aggiornata: _a, ...corpo } = bozza
+  void _f; void _a
+  const testo = `${testoBriefing(s)}
+
+Questa è la tua prima lettura del disegno:
+${JSON.stringify(corpo)}
+
+Il tiratore ha risposto ai tuoi dubbi:
+${risposte.map((r) => `- ${r.domanda} → ${r.risposta}`).join('\n')}
+
+Correggi la mappa tenendo conto delle risposte (posizioni, "vede", distanze, parziali) e restituisci di nuovo SOLO il JSON completo:
+${SCHEMA}
+${REGOLE}`
   const risposta = await chiedi(cfg, {
     sistema: SISTEMA,
     testo,
@@ -171,6 +229,6 @@ Regole:
     maxToken: 4000,
   })
   const m = normalizza(estraiJson(risposta), 'ai')
-  if (!m.bersagli.length) throw new ErroreAI('L’AI non ha trovato bersagli nel disegno. Prova a mappare a mano.')
+  if (!m.bersagli.length) throw new ErroreAI('La correzione non è riuscita: modifica la bozza a mano.')
   return m
 }

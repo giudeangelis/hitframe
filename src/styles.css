@@ -611,3 +611,11 @@ table.colpi th { font-family: var(--display); letter-spacing: 1.5px; text-transf
 .passi-ai li > span { display: block; }
 .passi-ai .btn { margin-top: 8px; }
 .passi-ai code { font-size: 13px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+
+/* 0.23: domande rapide sullo stage */
+.dubbi { display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 14px; border: 1px solid var(--accent); background: var(--surface); }
+.dubbi .title { font-weight: 700; }
+.dubbio { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.dubbio legend { font-weight: 600; font-size: 14.5px; margin-bottom: 8px; }
+.dubbio .chip { min-height: 40px; padding: 8px 14px; font-size: 14px; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
