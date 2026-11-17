@@ -171,8 +171,12 @@ function leggiDubbi(raw: unknown): Dubbio[] {
   if (!Array.isArray(raw)) return []
   return raw.slice(0, 3).flatMap((d, i) => {
     const o = d as Record<string, unknown>
-    const opzioni = Array.isArray(o?.opzioni) ? o.opzioni.map(String).filter(Boolean).slice(0, 4) : []
-    const domanda = typeof o?.domanda === 'string' ? o.domanda.trim() : ''
+    const grezze = (o?.opzioni ?? o?.risposte ?? o?.options) as unknown
+    const opzioni = Array.isArray(grezze)
+      ? grezze.map((x) => (typeof x === 'string' ? x : String((x as Record<string, unknown>)?.testo ?? (x as Record<string, unknown>)?.text ?? (x as Record<string, unknown>)?.label ?? ''))).map((x) => x.trim()).filter(Boolean).slice(0, 4)
+      : []
+    const q = o?.domanda ?? o?.question ?? o?.testo
+    const domanda = typeof q === 'string' ? q.trim() : ''
     return domanda && opzioni.length >= 2 ? [{ id: `d${i + 1}`, domanda, opzioni }] : []
   })
 }
@@ -202,7 +206,7 @@ ${REGOLE}
   const raw = estraiJson(risposta) as Record<string, unknown>
   const m = normalizza(raw, 'ai')
   if (!m.bersagli.length) throw new ErroreAI('L’AI non ha trovato bersagli nel disegno. Prova a mappare a mano.')
-  return { mappa: m, dubbi: leggiDubbi(raw.dubbi) }
+  return { mappa: m, dubbi: leggiDubbi(raw.dubbi ?? raw.domande) }
 }
 
 /** Corregge la bozza con le risposte del tiratore. */

@@ -1,10 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { MSG_PDF, usePdfAnalisi } from '../sync/pdf'
 import { AlertTriangle, ArrowLeft, Check, ClipboardCheck, Dumbbell, Hand, MapPinned, Pencil, Sparkles, Zap } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import StageMappa, { type Sovrapposizione } from '../components/StageMappa'
-import { Segmented, useToast } from '../components/ui'
+import { Segmented, Sheet, useToast } from '../components/ui'
 import { getConfigAI } from '../ai/ai'
 import { chiaveMappa, immagineDisegno, mappaVuota, proponiMappaAI, rifinisciMappaAI, type Dubbio, type MappaStage } from '../analisi/mappa'
 import { fmtHf, fmtS, partenzaSpeciale, stimaStage } from '../analisi/motore'
@@ -27,6 +27,9 @@ export default function StudioStage() {
   const [stile, setStile] = useState<Stile | null>(null)
   const [dubbi, setDubbi] = useState<Dubbio[] | null>(null)
   const [risposte, setRisposte] = useState<Record<string, string>>({})
+  const [passo, setPasso] = useState(0)
+  const mappaRef = useRef<HTMLElement>(null)
+  const chiudiDomande = useCallback(() => setDubbi(null), [])
 
   const sez = a ? a.lettura.sezioni[a.sezione] ?? a.lettura.sezioni[0] : null
   const s = sez?.stages.find((x) => x.numero === numero)
@@ -84,8 +87,9 @@ export default function StudioStage() {
       const r = await proponiMappaAI(img, s!)
       setBozza(r.mappa)
       setRisposte({})
+      setPasso(0)
       setDubbi(r.dubbi.length ? r.dubbi : null)
-      toast(r.dubbi.length ? 'Bozza pronta: rispondi alle domande' : 'Bozza pronta: controllala e salva')
+      if (!r.dubbi.length) { toast('Bozza pronta: controllala e salva'); vaiAllaMappa() }
     } catch (e) {
       setErroreAi(e instanceof Error ? e.message : 'Proposta non riuscita')
     } finally {
@@ -93,16 +97,29 @@ export default function StudioStage() {
     }
   }
 
-  async function applicaRisposte() {
+  function vaiAllaMappa() {
+    setTimeout(() => mappaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300)
+  }
+
+  function rispondi(d: Dubbio, o: string) {
+    const nuove = { ...risposte, [d.id]: o }
+    setRisposte(nuove)
+    const i = dubbi!.indexOf(d)
+    if (i < dubbi!.length - 1) setTimeout(() => setPasso(i + 1), 200)
+    else void applicaRisposte(nuove)
+  }
+
+  async function applicaRisposte(ris = risposte) {
     if (!img || !bozza || !dubbi) return
-    const date = dubbi.filter((d) => risposte[d.id] && risposte[d.id] !== 'Non so').map((d) => ({ domanda: d.domanda, risposta: risposte[d.id] }))
-    if (!date.length) { setDubbi(null); return }
+    const date = dubbi.filter((d) => ris[d.id] && ris[d.id] !== 'Non so').map((d) => ({ domanda: d.domanda, risposta: ris[d.id] }))
+    if (!date.length) { setDubbi(null); toast('Bozza pronta: controllala e salva'); vaiAllaMappa(); return }
     setErroreAi('')
     setAiInCorso(true)
     try {
       setBozza(await rifinisciMappaAI(img, s!, bozza, date))
       setDubbi(null)
-      toast('Bozza corretta con le tue risposte: controllala e salva')
+      toast('Mappa corretta con le tue risposte: controllala e salva')
+      vaiAllaMappa()
     } catch (e) {
       setErroreAi(e instanceof Error ? e.message : 'Correzione non riuscita')
     } finally {
@@ -190,7 +207,7 @@ export default function StudioStage() {
       ) : !img ? (
         <div className="card">Carico il disegno…</div>
       ) : (
-        <section className="card form">
+        <section className="card form" ref={mappaRef} style={{ scrollMarginTop: 80 }}>
           <div className="card-title" style={{ marginBottom: 0 }}>
             <span><MapPinned size={18} style={{ verticalAlign: -3 }} /> Mappa</span>
             {mappa && !bozza && (
@@ -214,31 +231,6 @@ export default function StudioStage() {
             </>
           )}
           {erroreAi && <div role="alert" className="card avviso"><AlertTriangle size={18} color="var(--accent)" /> {erroreAi}</div>}
-
-          {bozza && dubbi && (
-            <div className="dubbi">
-              <div className="title">Prima del piano, {dubbi.length === 1 ? 'una domanda rapida' : `${dubbi.length} domande rapide`}</div>
-              <p className="prose" style={{ margin: 0, fontSize: 13 }}>Il disegno non ha misure: le tue risposte valgono più di qualsiasi lettura automatica.</p>
-              {dubbi.map((d) => (
-                <fieldset key={d.id} className="dubbio">
-                  <legend>{d.domanda}</legend>
-                  <div className="chips">
-                    {[...d.opzioni, 'Non so'].map((o) => (
-                      <button key={o} type="button" className={`chip${risposte[d.id] === o ? ' on' : ''}`} aria-pressed={risposte[d.id] === o}
-                        onClick={() => setRisposte({ ...risposte, [d.id]: o })}>{o}</button>
-                    ))}
-                  </div>
-                </fieldset>
-              ))}
-              <div className="row">
-                <button className="btn ghost" onClick={() => setDubbi(null)} disabled={aiInCorso}>Salta</button>
-                <div className="spacer" />
-                <button className="btn primary" onClick={applicaRisposte} disabled={aiInCorso || !Object.keys(risposte).length}>
-                  <Sparkles size={18} className={aiInCorso ? 'spin' : ''} /> {aiInCorso ? 'Correggo la bozza…' : 'Correggi la bozza'}
-                </button>
-              </div>
-            </div>
-          )}
 
           {bozza && !dubbi && bozza.fonte === 'ai' && (
             <p className="prose" style={{ margin: 0, fontSize: 13 }}><b>Controlla la bozza:</b> trascina bersagli e posizioni dove sono davvero, poi salva. Il piano parte da qui.</p>
@@ -322,6 +314,34 @@ export default function StudioStage() {
             </div>
           </section>
         </>
+      )}
+      {dubbi && dubbi[passo] && (
+        <Sheet title={dubbi.length === 1 ? 'Una domanda sullo stage' : `${dubbi.length} domande sullo stage`} onClose={chiudiDomande}>
+          {aiInCorso ? (
+            <div className="dubbi-attesa">
+              <Sparkles size={28} className="spin" color="var(--accent)" />
+              <div className="title">Correggo la mappa con le tue risposte…</div>
+            </div>
+          ) : (
+            <div className="form">
+              <div className="dubbi-passo">Domanda {passo + 1} di {dubbi.length}</div>
+              <p className="dubbi-domanda">{dubbi[passo].domanda}</p>
+              <div className="dubbi-opzioni">
+                {[...dubbi[passo].opzioni, 'Non so'].map((o) => (
+                  <button key={o} type="button" className={`btn${risposte[dubbi[passo].id] === o ? ' primary' : ''}`}
+                    aria-pressed={risposte[dubbi[passo].id] === o} onClick={() => rispondi(dubbi[passo], o)}>{o}</button>
+                ))}
+              </div>
+              {erroreAi && <div role="alert" className="card avviso"><AlertTriangle size={18} color="var(--accent)" /> {erroreAi}</div>}
+              <p className="prose" style={{ margin: 0, fontSize: 13 }}>Il disegno non ha misure: le tue risposte valgono più di qualsiasi lettura automatica.</p>
+              <div className="row">
+                {passo > 0 && <button className="btn ghost" onClick={() => setPasso(passo - 1)}>Indietro</button>}
+                <div className="spacer" />
+                <button className="btn ghost" onClick={() => { setDubbi(null); toast('Bozza pronta: controllala e salva'); vaiAllaMappa() }}>Salta le domande</button>
+              </div>
+            </div>
+          )}
+        </Sheet>
       )}
     </div>
   )

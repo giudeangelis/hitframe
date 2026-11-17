@@ -619,3 +619,8 @@ table.colpi th { font-family: var(--display); letter-spacing: 1.5px; text-transf
 .dubbio legend { font-weight: 600; font-size: 14.5px; margin-bottom: 8px; }
 .dubbio .chip { min-height: 40px; padding: 8px 14px; font-size: 14px; }
 .chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.dubbi-passo { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); }
+.dubbi-domanda { margin: 0; font-size: 19px; font-weight: 700; line-height: 1.35; }
+.dubbi-opzioni { display: flex; flex-direction: column; gap: 10px; }
+.dubbi-opzioni .btn { justify-content: flex-start; min-height: 52px; font-size: 16px; text-align: left; }
+.dubbi-attesa { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 30px 10px 40px; text-align: center; }
