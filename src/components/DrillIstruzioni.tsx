@@ -26,7 +26,7 @@ function DisegnoStage({ rif }: { rif: NonNullable<DrillPersonale['stage']> }) {
   useEffect(() => {
     if (!a?.pdf || !s) return
     let ok = true
-    immagineDisegno(String(a.id), a.pdf, s.pagina, s.tabellaTopY).then((r) => ok && setImg(r)).catch(() => {})
+    immagineDisegno(String(a.id), a.pdf, s.pagina, s.tabellaTopY, s.disegnoTopY).then((r) => ok && setImg(r)).catch(() => {})
     return () => { ok = false }
   }, [a?.id, a?.pdf, s?.pagina, s?.tabellaTopY]) // eslint-disable-line react-hooks/exhaustive-deps
   const piano = useMemo(() => (mappa && s && profilo ? calcolaPiano(mappa, s, profilo, rif.stile) : null), [mappa, s, profilo, rif.stile])

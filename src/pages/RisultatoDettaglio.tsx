@@ -378,7 +378,7 @@ function VerificaAbbinamento({ r, libretto, onClose }: { r: RisultatoGara; libre
                   {opzioni.map((z) => <option key={z.numero} value={z.numero}>Libretto {z.numero}</option>)}
                 </select>
               </div>
-              {st && libretto.pdf && <div style={{ marginTop: 8 }}><StageDisegno analisiId={libretto.id} pdf={libretto.pdf} pagina={st.pagina} tagliaY={st.tabellaTopY} alt={`Disegno dello stage ${st.numero} del libretto`} /></div>}
+              {st && libretto.pdf && <div style={{ marginTop: 8 }}><StageDisegno analisiId={libretto.id} pdf={libretto.pdf} pagina={st.pagina} tagliaY={st.tabellaTopY} cimaY={st.disegnoTopY} alt={`Disegno dello stage ${st.numero} del libretto`} /></div>}
             </div>
           )
         })}

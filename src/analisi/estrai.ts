@@ -41,13 +41,14 @@ export async function estraiPagine(doc: PDFDocumentProxy): Promise<PaginaPdf[]> 
  * Disegna la parte alta della pagina (il disegno dello stage) su un canvas.
  * tagliaY = coordinata PDF sotto la quale inizia la tabella.
  */
-export async function disegnaStage(doc: PDFDocumentProxy, numeroPagina: number, canvas: HTMLCanvasElement, larghezzaCss: number, tagliaY: number) {
+export async function disegnaStage(doc: PDFDocumentProxy, numeroPagina: number, canvas: HTMLCanvasElement, larghezzaCss: number, tagliaY: number, cimaY?: number) {
   const page = await doc.getPage(numeroPagina)
   const base = page.getViewport({ scale: 1 })
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
   const scala = (larghezzaCss / base.width) * dpr
-  const vp = page.getViewport({ scale: scala })
-  const altezzaPdf = base.height - tagliaY // dalla cima della pagina alla tabella
+  const cima = cimaY ?? base.height
+  const vp = page.getViewport({ scale: scala, offsetY: -(base.height - cima) * scala })
+  const altezzaPdf = cima - tagliaY // dalla cima del disegno alla tabella (o al piè di pagina)
   canvas.width = Math.round(vp.width)
   canvas.height = Math.round(altezzaPdf * scala)
   canvas.style.width = `${larghezzaCss}px`

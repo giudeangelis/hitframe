@@ -41,6 +41,8 @@ export interface StageLetto {
   etichetteDisegno: string[]
   /** limite superiore della tabella, in punti PDF: sopra c'è il disegno */
   tabellaTopY: number
+  /** libretti da club: il disegno sta sotto l'intestazione, fino a questa y (punti PDF) */
+  disegnoTopY?: number
   flag: FlagStage
   attivazioni: string[]
 }

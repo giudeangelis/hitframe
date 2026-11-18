@@ -107,8 +107,8 @@ export function normalizza(raw: Partial<MappaStage> & Record<string, unknown>, f
 const cacheImg = new Map<string, Promise<{ url: string; w: number; h: number }>>()
 
 /** Il disegno dello stage come immagine JPEG (per l'editor e per l'AI). */
-export function immagineDisegno(chiave: string, pdf: Blob, pagina: number, tagliaY: number, larghezza = 1200) {
-  const k = `${chiave}|${pagina}|${larghezza}`
+export function immagineDisegno(chiave: string, pdf: Blob, pagina: number, tagliaY: number, cimaY?: number, larghezza = 1200) {
+  const k = `${chiave}|${pagina}|${larghezza}|${tagliaY}|${cimaY ?? ''}`
   let p = cacheImg.get(k)
   if (!p) {
     p = (async () => {
@@ -116,7 +116,7 @@ export function immagineDisegno(chiave: string, pdf: Blob, pagina: number, tagli
       const canvas = document.createElement('canvas')
       // disegnaStage tiene conto del devicePixelRatio: qui vogliamo pixel esatti
       const dpr = window.devicePixelRatio || 1
-      await disegnaStage(doc, pagina, canvas, larghezza / Math.min(dpr, 2), tagliaY)
+      await disegnaStage(doc, pagina, canvas, larghezza / Math.min(dpr, 2), tagliaY, cimaY)
       const url = canvas.toDataURL('image/jpeg', 0.85)
       await doc.loadingTask.destroy()
       return { url, w: canvas.width, h: canvas.height }

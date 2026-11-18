@@ -285,7 +285,7 @@ function StageCard({ s, stima, aperto, onToggle, analisiId, pdf, haMappa, msgPdf
       {aperto && (
         <div className="stage-body">
           <Link to={`/analisi-gara/${analisiId}/stage/${s.numero}`} className="btn primary" style={{ alignSelf: 'flex-start' }}><MapPinned size={18} /> {haMappa ? 'Apri lo studio dello stage' : 'Studia lo stage'}</Link>
-          <StageDisegno analisiId={analisiId} pdf={pdf} pagina={s.pagina} tagliaY={s.tabellaTopY} alt={`Disegno dello stage ${s.numero}`} messaggio={msgPdf} />
+          <StageDisegno analisiId={analisiId} pdf={pdf} pagina={s.pagina} tagliaY={s.tabellaTopY} cimaY={s.disegnoTopY} alt={`Disegno dello stage ${s.numero}`} messaggio={msgPdf} />
           {stima && (
             <div className="stima-righe">
               <div><Timer size={14} /> Obiettivo <b>{fmtS(stima.obiettivo)}</b></div>

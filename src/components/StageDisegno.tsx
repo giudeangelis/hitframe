@@ -14,8 +14,8 @@ function documento(id: number, pdf: Blob): Promise<PDFDocumentProxy> {
   return p
 }
 
-export default function StageDisegno({ analisiId, pdf, pagina, tagliaY, alt, messaggio }: {
-  analisiId: number; pdf: Blob | null; pagina: number; tagliaY: number; alt: string; messaggio?: string
+export default function StageDisegno({ analisiId, pdf, pagina, tagliaY, cimaY, alt, messaggio }: {
+  analisiId: number; pdf: Blob | null; pagina: number; tagliaY: number; cimaY?: number; alt: string; messaggio?: string
 }) {
   const box = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -28,7 +28,7 @@ export default function StageDisegno({ analisiId, pdf, pagina, tagliaY, alt, mes
     documento(analisiId, pdf)
       .then(async (doc) => {
         if (annullato || !canvas.current) return
-        await disegnaStage(doc, pagina, canvas.current, larghezza, tagliaY)
+        await disegnaStage(doc, pagina, canvas.current, larghezza, tagliaY, cimaY)
         if (!annullato) setStato('ok')
       })
       .catch((e) => {
@@ -36,7 +36,7 @@ export default function StageDisegno({ analisiId, pdf, pagina, tagliaY, alt, mes
         if (!annullato) setStato('errore')
       })
     return () => { annullato = true }
-  }, [analisiId, pdf, pagina, tagliaY])
+  }, [analisiId, pdf, pagina, tagliaY, cimaY])
 
   if (!pdf) {
     return <div className="disegno vuoto">{messaggio ?? 'Disegno non disponibile: ricarica il PDF della gara per vederlo.'}</div>

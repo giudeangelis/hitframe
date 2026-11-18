@@ -41,7 +41,7 @@ export default function StudioStage() {
   useEffect(() => {
     if (!a?.pdf || !s) return
     let ok = true
-    immagineDisegno(String(analisiId), a.pdf, s.pagina, s.tabellaTopY)
+    immagineDisegno(String(analisiId), a.pdf, s.pagina, s.tabellaTopY, s.disegnoTopY)
       .then((r) => ok && setImg(r))
       .catch(() => ok && setErroreImg(true))
     return () => { ok = false }

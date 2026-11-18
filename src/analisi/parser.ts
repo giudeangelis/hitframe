@@ -2,6 +2,7 @@
  * Lettore dei PDF di gara FITDS / IPSC (modello standard, italiano o inglese).
  * Funziona solo sul testo con le posizioni: nessuna AI, nessuna rete.
  */
+import { eStageClub, leggiInfoClub, leggiStageClub } from './parserClub'
 import type { FlagStage, GaraLetta, InfoGara, PaginaPdf, SezioneGara, StageLetto, TestoPdf, TipoCorso } from './tipi'
 
 type Riga = { y: number; items: TestoPdf[]; testo: string }
@@ -230,7 +231,9 @@ function etichettaSezione(info: InfoGara, i: number): string {
 function leggiSezione(pagine: PaginaPdf[], trovati: Omit<StageLetto, 'numero'>[]): SezioneGara {
   const avvisi: string[] = []
   const primaStage = trovati.length ? Math.min(...trovati.map((s) => s.pagina)) : Infinity
-  const info = leggiInfo(pagine.filter((p) => p.numero < primaStage))
+  const prima = pagine.filter((p) => p.numero < primaStage)
+  let info = leggiInfo(prima)
+  if (!info.nome && trovati.some((s) => s.disegnoTopY != null)) info = leggiInfoClub(prima)
 
   // Briefing bilingue: stessi stage ripetuti in due lingue. Teniamo l'italiano.
   let tenuti = trovati
@@ -255,11 +258,22 @@ function leggiSezione(pagine: PaginaPdf[], trovati: Omit<StageLetto, 'numero'>[]
   return { etichetta: '', info, stages, avvisi }
 }
 
+function stageClub(p: PaginaPdf): Omit<StageLetto, 'numero'> | null {
+  if (!eStageClub(p)) return null
+  const c = leggiStageClub(p)
+  if (!c) return null
+  const { numeroLetto: _n, ...s } = c
+  void _n
+  s.flag = flagStage(s)
+  s.attivazioni = attivazioni(s)
+  return s
+}
+
 export function leggiGara(pagine: PaginaPdf[]): GaraLetta {
   // Un PDF può contenere più libretti (es. Handgun e PCC): li separiamo alle copertine.
   const gruppi: { pagine: PaginaPdf[]; stages: Omit<StageLetto, 'numero'>[] }[] = [{ pagine: [], stages: [] }]
   for (const p of pagine) {
-    const s = leggiStage(p)
+    const s = leggiStage(p) ?? stageClub(p)
     let g = gruppi[gruppi.length - 1]
     if (!s && g.stages.length && eCopertina(p)) {
       g = { pagine: [], stages: [] }
@@ -276,7 +290,7 @@ export function leggiGara(pagine: PaginaPdf[]): GaraLetta {
       return sez
     })
   const avvisi: string[] = []
-  if (!sezioni.length) avvisi.push('Non ho trovato stage nel formato standard FITDS/IPSC.')
+  if (!sezioni.length) avvisi.push('Non ho trovato stage in un formato che conosco (libretto FITDS/IPSC o libretto da club con "Stage N … COURSE").')
   if (sezioni.length > 1) avvisi.push(`Il PDF contiene ${sezioni.length} libretti (${sezioni.map((s) => s.etichetta).join(', ')}).`)
   return { sezioni, avvisi, pagineTotali: pagine.length }
 }
