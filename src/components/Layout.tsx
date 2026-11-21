@@ -5,6 +5,7 @@ import { aggiornaColoriSeServe, sincronizzaTutto } from '../google/calendar'
 import { getAccount } from '../google/auth'
 import { avviaSincronizzazione } from '../sync/stato'
 import NuvolaSync from './NuvolaSync'
+import CalcoloHF from './CalcoloHF'
 import ChatAI from './ChatAI'
 import { BannerLicenza, GestoreLicenza } from '../licenza/ui'
 import { aggiornamentoDesktop } from '../lib/desktop'
@@ -70,6 +71,7 @@ export default function Layout() {
             )}
           </div>
         ))}
+        <CalcoloHF classe="nav-link" conTesto />
         <div className="spacer" />
         <div className="sidebar-sync"><NuvolaSync conTesto /></div>
         {STRUMENTI.map((s) => (
@@ -82,6 +84,7 @@ export default function Layout() {
           <Link to="/" style={{ textDecoration: 'none' }} aria-label="Oggi"><Wordmark size={24} /></Link>
           <div className="row" style={{ gap: 4 }}>
             <NuvolaSync />
+            <CalcoloHF />
             {STRUMENTI.map((s) => (
               <NavLink key={s.path} to={s.path} className="btn icon ghost topbar-btn" aria-label={s.label} title={s.label}>
                 <s.icon size={21} />

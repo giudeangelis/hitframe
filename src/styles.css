@@ -624,3 +624,20 @@ table.colpi th { font-family: var(--display); letter-spacing: 1.5px; text-transf
 .dubbi-opzioni { display: flex; flex-direction: column; gap: 10px; }
 .dubbi-opzioni .btn { justify-content: flex-start; min-height: 52px; font-size: 16px; text-align: left; }
 .dubbi-attesa { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 30px 10px 40px; text-align: center; }
+
+/* 0.25: calcolo hit factor */
+.calc-hf { gap: 14px; }
+.calc-righe { display: flex; flex-direction: column; gap: 8px; }
+.calc-riga { display: grid; grid-template-columns: 1fr 48px 56px 48px; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 12px; background: var(--surface-2); }
+.calc-riga .btn.icon { width: 48px; height: 48px; }
+.calc-nome { display: flex; flex-direction: column; line-height: 1.15; }
+.calc-nome b { font-size: 17px; }
+.calc-nome span { font-size: 12.5px; color: var(--muted); }
+.calc-riga.penalita .calc-nome b { color: var(--danger, #ff6b6b); }
+.calc-num { text-align: center; font-family: var(--display); font-weight: 900; font-style: italic; font-size: 30px; }
+.calc-esito { display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: 8px; }
+.calc-esito > div { display: flex; flex-direction: column; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
+.calc-esito span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+.calc-esito b { font-family: var(--display); font-weight: 900; font-style: italic; font-size: 28px; }
+.calc-hf-valore { background: var(--accent) !important; color: var(--accent-ink); }
+.calc-hf-valore span { color: inherit; opacity: .8; }
